@@ -13,6 +13,7 @@ from .utils_dataset import*
 import random
 from .FLAIR_2 import*
 from datetime import datetime, timezone
+import torch.distributed as dist
 
 def del_file(path):
     if os.path.exists(path):
@@ -287,14 +288,15 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
         "l7_timestamps":(total_samples, 20),
         "modis_timestamps": (total_samples, 60),
         "alos_timestamps":  (total_samples, 4),
-        "label":        (total_samples,)
+        "label":        (total_samples,),
+        "frequencies":        (total_samples,)
     }
 
     # Open the HDF5 file and create datasets (no compression)
     with h5py.File(h5_path, 'w') as db:
         datasets = {}
         for key, shape in shape_dict.items():
-            if key == "label":
+            if key == "label" or key=="frequencies":
                 dtype = int
             elif "mask" in key:
                 dtype = np.uint8  # storing booleans as uint8
@@ -335,11 +337,18 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             modis_timestamps = (data["modis_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             alos_timestamps = (data["alos_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
 
-            # Process labels. Here we loop over the file's samples to convert species strings to IDs.
-            # This step could be further optimized if a vectorized mapping is available.
+            # Process labels and frequencies.
             labels = np.empty(num_samples_file, dtype=int)
+            frequencies = np.empty(num_samples_file, dtype=int)
             for i in range(num_samples_file):
                 labels[i] = int(dico_labels[str(data["species"][i])]["id"])
+                tmp_freq = dico_labels[str(data["species"][i])]["Frequency"]
+                if tmp_freq == "frequent":
+                    frequencies[i] = 0
+                elif tmp_freq == "common":
+                    frequencies[i] = 1
+                elif tmp_freq == "rare":
+                    frequencies[i] = 2
 
             # Write all processed arrays to the corresponding slice in the HDF5 datasets
             start_idx = global_index
@@ -363,10 +372,9 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             datasets["alos_timestamps"][start_idx:end_idx] = alos_timestamps
 
             datasets["label"][start_idx:end_idx] = labels
+            datasets["frequencies"][start_idx:end_idx] = frequencies  # Corrected
 
-            global_index = end_idx
-            if global_index >= total_samples:
-                break
+        
 
 
 
@@ -386,12 +394,13 @@ import h5py
 import random
 from torchvision.transforms.functional import rotate, hflip, vflip
 
-class CustomPlantnet(Dataset):
+class CustomPlanted(Dataset):
     def __init__(self, file_path, config=None, trans_config=None, augment=True):
         self.file_path = file_path
         self.config = config
         self.trans_config = trans_config
         self.augment = augment
+        self.max_tokens=self.config["trainer"]["max_tokens"]
 
         with h5py.File(self.file_path, 'r') as f:
             self.num_samples = f["s1"].shape[0]  # all modalities have the same first dimension
@@ -406,7 +415,8 @@ class CustomPlantnet(Dataset):
             #s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [8,12,12,3]
 
 
-            label=s2_dates = f["label"][idx]
+            label= f["label"][idx]
+            frequency=f["frequencies"][idx]
 
             tokens_list=[]
             token_masks_wavelength=[]
@@ -454,37 +464,26 @@ class CustomPlantnet(Dataset):
             tokens=torch.cat(tokens_list,dim=0)
             token_masks_w=torch.cat(token_masks_wavelength,dim=0)
 
-
-
+            
+            if tokens.shape[0]<self.max_tokens:
+                tokens_padding=torch.zeros((self.max_tokens-tokens.shape[0],tokens.shape[1]))
+                tokens_masks=torch.zeros((self.max_tokens-tokens.shape[0]))
 
             
+
+                tokens=torch.cat([tokens,tokens_padding],dim=0)
+                token_masks_w=torch.cat([token_masks_w,tokens_masks])
 
   
 
-
-            # Mask (choose one)
-            
-
-            # Optionally apply augmentations
-            #if self.augment:
-            #    s2, mask = self.apply_transforms(s2, mask)
-
-            # Assemble input
-            #data = (None, mask, s2.permute(0, 4, 1, 2), (years, months, days), "dummy")  # s2: [T, C, H, W]
-
-            #tokens, tokens_mask, attention_mask = self.trans_config.apply_transformations_atomiser(data)
-
-            #tokens = tokens.float()
-            #tokens_mask = tokens_mask.float()
-            #mask = self.process_mask(mask)
-
-        return tokens,token_masks_w,label
+        return tokens,token_masks_w,label,frequency
 
 
 
 
+import torch.distributed as dist
 
-class CustomFlairDataModule(pl.LightningDataModule):
+class CustomPlantedDataModule(pl.LightningDataModule):
     def __init__(self, path,config,trans_config, batch_size=8, num_workers=4):
         super().__init__()
         self.train_file = path + "_train.h5"
@@ -506,19 +505,19 @@ class CustomFlairDataModule(pl.LightningDataModule):
         # Note: This setup() method is called on each process so the dataset and sampler
         # will be created in the proper distributed context.
 
-        self.train_dataset = CustomFLAIR(
+        self.train_dataset = CustomPlanted(
             self.train_file,
             config=self.config,
             trans_config=self.trans_config,
         )
 
-        self.val_dataset = CustomFLAIR(
+        self.val_dataset = CustomPlanted(
             self.val_file,
             config=self.config,
             trans_config=self.trans_config,
         )
    
-        self.test_dataset = CustomFLAIR(
+        self.test_dataset = CustomPlanted(
             self.test_file,
             config=self.config,
             trans_config=self.trans_config,

@@ -110,6 +110,8 @@ class Atomiser(nn.Module):
         shape_input_bandvalue=self.get_shape_attributes_config("bandvalue")
         self.nb_classes=config["dataset"]["classes"]
 
+        self.wavelength_bits_size=shape_input_wavelength
+
         input_dim=shape_input_dim_x+shape_input_dim_y+shape_input_year+shape_input_day+shape_input_wavelength+shape_input_bandvalue
         self.coordinates_start_wl=shape_input_bandvalue
         self.coordinates_end_wl=shape_input_bandvalue+shape_input_wavelength
@@ -120,7 +122,10 @@ class Atomiser(nn.Module):
         
         # Initialize your parameter
         self.sen_1 = nn.Parameter(torch.empty(shape_input_wavelength))
-        nn.init.trunc_normal_(self.self.sen_1, mean=0.0, std=0.02, a=-2.0, b=2.0)
+        nn.init.trunc_normal_(self.sen_1, mean=0.0, std=0.02, a=-2.0, b=2.0)
+
+        self.alos = nn.Parameter(torch.empty(shape_input_wavelength))
+        nn.init.trunc_normal_(self.alos, mean=0.0, std=0.02, a=-2.0, b=2.0)
         
         # Apply truncated normal initialization with specified parameters
 
@@ -199,7 +204,7 @@ class Atomiser(nn.Module):
 
 
 
-    def forward(self,data,tokens_mask = None,attention_mask=None,return_embeddings = False,training=False):
+    def forward(self,data,tokens_masks = None,training=False):
         
         b, *axis, _, device, dtype = *data.shape, data.device, data.dtype
 
@@ -207,6 +212,20 @@ class Atomiser(nn.Module):
         
 
         x = repeat(self.latents, 'n d -> b n d', b = b)
+        # For tokens where tokens_masks equals 2
+        mask2 = (tokens_masks == 2)  # shape: [B, T]
+        batch_idx, token_idx = torch.nonzero(mask2, as_tuple=True)
+        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.sen_1  # self.sen_1 shape: [wavelength_bits_size]
+        tokens_masks[batch_idx, token_idx] = 1
+
+        # For tokens where tokens_masks equals 3
+        mask3 = (tokens_masks == 3)
+        batch_idx, token_idx = torch.nonzero(mask3, as_tuple=True)
+        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.alos  # assuming self.alos shape: [wavelength_bits_size]
+        tokens_masks[batch_idx, token_idx] = 1
+
+        tokens_masks=tokens_masks.to(bool)
+
 
         
         # layers
@@ -219,7 +238,7 @@ class Atomiser(nn.Module):
             if training and self.masking>0:
                 masked_data=masking(masked_data,self.masking)
 
-            x = cross_attn(x, context = masked_data, mask = mask) + x
+            x = cross_attn(x, context = masked_data, mask = tokens_masks ) + x
             x = cross_ff(x) + x
 
             for self_attn, self_ff in self_attns:
@@ -230,16 +249,4 @@ class Atomiser(nn.Module):
             x = self_attn(x) + x
             x = self_ff(x) + x
 
-            
-
-        # allow for fetching embeddings
-
-        if return_embeddings:
-            return x
-
-        # to logits
-
         return self.to_logits(x)
-
-
-        return logits

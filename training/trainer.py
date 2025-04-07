@@ -45,7 +45,28 @@ class Model(pl.LightningModule):
         self.name = name
         self.table=False
 
-        self.metric_IoU_train = torchmetrics.JaccardIndex(task="multiclass", num_classes=self.num_classes, average="macro")
+        self.metric_Acc_train = torchmetrics.Accuracy(task="multiclass", num_classes=40)
+        self.metric_Acc_validation = torchmetrics.Accuracy(task="multiclass", num_classes=40)
+        self.metric_Acc_test = torchmetrics.Accuracy(task="multiclass", num_classes=40)
+
+        self.metric_F1_train = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_validation = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_test = torchmetrics.F1Score(task="multiclass", num_classes=40)
+
+        self.metric_F1_train_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_validation_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_test_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
+
+        self.metric_F1_train_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_validation_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_test_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
+
+        self.metric_F1_train_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_validation_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_test_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
+
+        
+
         self.metric_IoU_val = torchmetrics.classification.MulticlassJaccardIndex(self.num_classes, average="macro")
         self.metric_IoU_test = torchmetrics.classification.MulticlassJaccardIndex(self.num_classes, average=None)
 
@@ -78,10 +99,8 @@ class Model(pl.LightningModule):
         self.loss = nn.CrossEntropyLoss()
         self.lr = float(config["trainer"]["lr"])
         
-    def forward(self, tokens,tokens_masks,attention_mask):
-
-        
-        model_output=self.encoder(tokens,tokens_masks,attention_mask)
+    def forward(self, tokens,tokens_masks,training=False):
+        model_output=self.encoder(tokens,tokens_masks,training=training)
        
      
       
@@ -90,36 +109,30 @@ class Model(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        tokens, tokens_mask, attention_mask, labels = batch
-        y_hat = self.forward(tokens, tokens_mask, attention_mask)
+        tokens,token_masks_w,labels,frequency = batch
+        
 
-        labels = labels.long()
-        preds = torch.argmax(y_hat.clone(), dim=1)
-
+        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
+        
+        labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
-        self.metric_IoU_train.update(preds, labels)
 
-        # 🔥 CRITICAL DEBUGGING INFORMATION 🔥
-        print("Unique predicted classes:", preds.unique())
-        print("Unique true classes:", labels.unique())
+        y_hat=torch.argmax(y_hat,dim=1)
+        
 
-        if batch_idx == 0:  # visualize once per epoch
-            plt.figure(figsize=(10,4))
+        self.metric_Acc_train.update(y_hat,labels)
+        self.metric_F1_train.update(y_hat,labels)
+        if y_hat[frequency==0].shape[0]!=0:
+            self.metric_F1_train_freq.update(y_hat[frequency==0],labels[frequency==0])
+        if y_hat[frequency==1].shape[0]!=0:
+            self.metric_F1_train_com.update(y_hat[frequency==1],labels[frequency==1])
+        if y_hat[frequency==2].shape[0]!=0:
+            self.metric_F1_train_rare.update(y_hat[frequency==2],labels[frequency==2])
 
-            plt.subplot(1,2,1)
-            plt.title("Predicted")
-            plt.imshow(preds[0].cpu().numpy(), cmap='tab20', vmin=0, vmax=self.num_classes-1)
-            plt.colorbar()
 
-            plt.subplot(1,2,2)
-            plt.title("Ground Truth")
-            plt.imshow(labels[0].cpu().numpy(), cmap='tab20', vmin=0, vmax=self.num_classes-1)
-            plt.colorbar()
+        self.log("train_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
 
-            plt.tight_layout()
-            plt.show()
-
-        return loss
+        return loss 
 
     
 
@@ -128,36 +141,53 @@ class Model(pl.LightningModule):
         metrics = self.trainer.callback_metrics
         loss = metrics.get("train_loss", float("inf"))
 
-        IoU=self.metric_IoU_train.compute()
+        IoU=self.metric_IoU_val.compute()
 
+        Acc=self.metric_Acc_validation.compute()
+        F1_score=self.metric_F1_validation.compute()
+        F1_freq=self.metric_F1_validation_freq.compute()
+        F1_com=self.metric_F1_validation_com.compute()
+        F1_rare=self.metric_F1_validation_rare.compute()
         
         self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("log train_loss", torch.log(torch.tensor(loss)), on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("log train_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
+        self.log("train_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
-        self.log("train_IoU", IoU, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        
-        self.metric_IoU_train.reset()
+        self.metric_Acc_train.reset()
+        self.metric_F1_train.reset()
+        self.metric_F1_train_freq.reset()
+        self.metric_F1_train_com.reset()
+        self.metric_F1_train_rare.reset()
         
     def validation_step(self, batch, batch_idx):
-        tokens, tokens_mask,attention_mask, labels = batch
+        tokens,token_masks_w,labels,frequency = batch
         
 
-        y_hat = self.forward(tokens,tokens_mask,attention_mask)
+        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
 
         y_hat=torch.argmax(y_hat,dim=1)
-        self.metric_IoU_val.update(y_hat, labels)
+        
+
+        self.metric_Acc_validation.update(y_hat,labels)
+        self.metric_F1_validation.update(y_hat,labels)
+        if y_hat[frequency==0].shape[0]!=0:
+            self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
+        if y_hat[frequency==1].shape[0]!=0:
+            self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
+        if y_hat[frequency==2].shape[0]!=0:
+            self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
         self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
-        
-        
-        
 
-       
         return loss        
 
     def on_validation_epoch_end(self):
@@ -166,13 +196,27 @@ class Model(pl.LightningModule):
         loss = metrics.get("val_loss", float("inf"))
 
         IoU=self.metric_IoU_val.compute()
+
+        Acc=self.metric_Acc_validation.compute()
+        F1_score=self.metric_F1_validation.compute()
+        F1_freq=self.metric_F1_validation_freq.compute()
+        F1_com=self.metric_F1_validation_com.compute()
+        F1_rare=self.metric_F1_validation_rare.compute()
         
         self.log("val_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
         self.log("log val_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
-        self.log("val_IoU", IoU, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        
-        self.metric_IoU_val.reset()
+        self.log("val_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+
+        self.metric_Acc_validation.reset()
+        self.metric_F1_validation.reset()
+        self.metric_F1_validation_freq.reset()
+        self.metric_F1_validation_com.reset()
+        self.metric_F1_validation_rare.reset()
         
         
             
@@ -183,76 +227,55 @@ class Model(pl.LightningModule):
         super().on_test_epoch_start()
         
     def test_step(self, batch, batch_idx):
-        tokens, tokens_mask,attention_mask, labels = batch
+        tokens,token_masks_w,labels,frequency = batch
         
 
-        y_hat = self.forward(tokens,tokens_mask,attention_mask)
+        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
         
         labels=labels.to(torch.long)
         
 
         y_hat=torch.argmax(y_hat,dim=1)
-        self.metric_IoU_test.update(y_hat, labels)
-        self.confmat_test.update(y_hat, labels)
+        
+
+        self.metric_Acc_test.update(y_hat,labels)
+        self.metric_F1_test.update(y_hat,labels)
+
+        if y_hat[frequency==0].shape[0]!=0:
+            self.metric_F1_test_freq.update(y_hat[frequency==0],labels[frequency==0])
+        if y_hat[frequency==1].shape[0]!=0:
+            self.metric_F1_test_com.update(y_hat[frequency==1],labels[frequency==1])
+        if y_hat[frequency==2].shape[0]!=0:
+            self.metric_F1_test_rare.update(y_hat[frequency==2],labels[frequency==2])
+
+
+        
+
+        return None
 
 
     def on_test_epoch_end(self):
   
-        IoU_per_class = self.metric_IoU_test.compute().cpu().numpy()
-        mean_IoU = IoU_per_class.mean()
-    
-        labels = [self.labels[k] for k in self.labels.keys()] 
-    
-        if self.wand:
-            table = wandb.Table(columns=["Class", "IoU"])
-            for label_name, iou_score in zip(labels, IoU_per_class):
-                table.add_data(label_name, float(iou_score))
-            
-            # Add the average IoU as a final row
-            table.add_data("Average IoU", float(mean_IoU))
-            
-            wandb.log({"IoU_per_Class": table})
-    
-        # Reset IoU metric after logging
-        self.metric_IoU_test.reset()
-    
-        confmat = self.confmat_test.compute().cpu().numpy()
-    
-        # Normalize confusion matrix by rows and round
-        confmat_normalized = confmat.astype('float') / confmat.sum(axis=1, keepdims=True)
-        confmat_normalized = np.nan_to_num(confmat_normalized)  # handle division by zero
-        confmat_normalized = np.round(confmat_normalized, 2)
-    
-        # Log confusion matrix using WandB
-        if self.wand:
-            fig, ax = plt.subplots(figsize=(12, 10))
-            im = ax.imshow(confmat_normalized, cmap='Blues')
-    
-            axis = np.arange(len(labels))
-    
-            # Annotate confusion matrix
-            ax.set_xticks(axis)
-            ax.set_xticklabels(labels, rotation=90)
-            ax.set_yticks(axis)
-            ax.set_yticklabels(labels)
-    
-            plt.xlabel('Predicted Label')
-            plt.ylabel('True Label')
-            plt.title('Normalized Confusion Matrix')
-    
-            # Ensure matrix occupies the entire plot area
-            plt.tight_layout()
-    
-            for i in range(len(labels)):
-                for j in range(len(labels)):
-                    ax.text(j, i, f"{confmat_normalized[i, j]:.2f}", ha='center', va='center', color='black')
-    
-            #fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            wandb.log({"Confusion Matrix": wandb.Image(fig)})
-    
-            plt.close(fig)
-    
-        self.confmat_test.reset()
+
+        Acc=self.metric_Acc_test.compute()
+        F1_score=self.metric_F1_test.compute()
+        F1_freq=self.metric_F1_test_freq.compute()
+        F1_com=self.metric_F1_test_com.compute()
+        F1_rare=self.metric_F1_test_rare.compute()
+        
+        
+
+        self.log("val_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+
+        self.metric_Acc_test.reset()
+        self.metric_F1_test.reset()
+        self.metric_F1_test_freq.reset()
+        self.metric_F1_test_com.reset()
+        self.metric_F1_test_rare.reset()
 
 
         

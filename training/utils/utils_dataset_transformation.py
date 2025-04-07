@@ -43,7 +43,7 @@ class transformations_config_flair:
         self.bands_alos_infos=self.bands_yaml["bands_alos_info"]
 
         self.config=config
-        print(self.config)
+  
         self.nb_tokens_limit=config["trainer"]["max_tokens"]
 
         self.gaussian_means=[]
