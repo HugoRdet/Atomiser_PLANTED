@@ -66,8 +66,8 @@ seed_everything(42, workers=True)
 torch.set_default_dtype(torch.float32)
 torch.set_float32_matmul_precision('medium')
 
-config_model = read_yaml("./training/configs/config_test-"+config_model+".yaml")
-labels = load_json_to_dict("./data/flair_2_toy_dataset/flair_labels.json")
+config_model = read_yaml("./training/configs/config_test-Atomiser_Atos.yaml")
+labels = load_json_to_dict("./data/labels.json")
 bands_yaml = "./data/bands_info/bands.yaml"
 
 trans_config = transformations_config_flair(bands_yaml, config_model)
@@ -80,11 +80,11 @@ if wand:
     if os.environ.get("LOCAL_RANK", "0") == "0":
         import wandb
         wandb.init(
-            name=get_xp_name(config_model['encoder']),
-            project="FLAIR",
+            name=xp_name,
+            project="PLANTED",
             config=config_model
         )
-        wandb_logger = WandbLogger(project="tiny_modalities")
+        wandb_logger = WandbLogger(project="PLANTED")
 
 
 checkpoint_dir = "./checkpoints"
@@ -94,14 +94,12 @@ print(f"Loading best checkpoint: {checkpoint_path}")
 model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels)
 
 
-data_module = CustomFlairDataModule(
-    "./data/custom_flair/"+config_name_dataset,
+data_module = CustomPlantedDataModule(
+    "./data/custom_planted/"+config_name_dataset,
     config=config_model,
     trans_config=trans_config,
     batch_size=config_model['dataset']['batchsize'],
 )
-
-data_module.setup()
 
 
 

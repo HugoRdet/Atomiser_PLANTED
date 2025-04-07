@@ -49,52 +49,43 @@ xp_name=args.xp_name
 config_model = args.config_model
 config_name_dataset = args.dataset_name
 
-
-
 seed_everything(42, workers=True)
 
 torch.set_default_dtype(torch.float32)
 torch.set_float32_matmul_precision('medium')
 
-
-
-config_model = read_yaml("./training/configs/config_test-"+config_model+".yaml")
-labels = load_json_to_dict("./data/flair_2_toy_dataset/flair_labels.json")
+config_model = read_yaml("./training/configs/config_test-Atomiser_Atos.yaml")
+labels = load_json_to_dict("./data/labels.json")
 bands_yaml = "./data/bands_info/bands.yaml"
 
 trans_config = transformations_config_flair(bands_yaml, config_model)
 
-
-
-
-wand = True
+wand = False
 wandb_logger = None
 if wand:
     if os.environ.get("LOCAL_RANK", "0") == "0":
         import wandb
         wandb.init(
-            name=get_xp_name(config_model['encoder']),
-            project="FLAIR",
+            name=get_xp_name(config_model['encoder']) + " modalities",
+            project="PLANTED",
             config=config_model
         )
-        wandb_logger = WandbLogger(project="tiny_modalities")
+        wandb_logger = WandbLogger(project="PLANTED")
 
 model = Model(config_model, wand=wand, name=xp_name, labels=labels)
 
-data_module = CustomFlairDataModule(
-    "./data/custom_flair/"+config_name_dataset,
+data_module = CustomPlantedDataModule(
+    "./data/custom_planted/"+config_name_dataset,
     config=config_model,
     trans_config=trans_config,
     batch_size=config_model['dataset']['batchsize'],
 )
 
-data_module.setup()
-
 
 # Callbacks
 checkpoint_callback = ModelCheckpoint(
     dirpath="./checkpoints/",
-    filename=xp_name+"best_model-{epoch:02d}-{val_IoU:.4f}",
+    filename="best_model-{epoch:02d}-{val_IoU:.4f}",
     monitor="val_IoU",
     mode="max",
     save_top_k=1,
@@ -114,8 +105,8 @@ early_stop_callback = EarlyStopping(
 # Trainer
 trainer = Trainer(
     use_distributed_sampler=False,
-    strategy="ddp",
-    devices=-1,
+    #strategy="ddp",
+    #devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
     log_every_n_steps=1,
@@ -127,8 +118,6 @@ trainer = Trainer(
 
 # Fit the model
 trainer.fit(model, datamodule=data_module)
-
-
 
 
 
