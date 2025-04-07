@@ -12,51 +12,25 @@ from .image_utils import*
 from .utils_dataset import*
 import random
 from .FLAIR_2 import*
+from datetime import datetime, timezone
 
 def del_file(path):
     if os.path.exists(path):
         os.remove(path)
 
 
-def filter_dates(mask, clouds:bool=2, area_threshold:float=0.5, proba_threshold:int=60):
-    """ Mask : array T*2*H*W
-        Clouds : 1 if filter on cloud cover, 0 if filter on snow cover, 2 if filter on both
-        Area_threshold : threshold on the surface covered by the clouds / snow 
-        Proba_threshold : threshold on the probability to consider the pixel covered (ex if proba of clouds of 30%, do we consider it in the covered surface or not)
-        Return array of indexes to keep
-    """
-    dates_to_keep = []
+def get_dates_data(time_stamps):
+    res_months=np.zeros(time_stamps.shape[0])
+    res_year=np.zeros(time_stamps.shape[0])
+
+    for id_date in range(time_stamps.shape[0]):
+        dt = datetime.fromtimestamp(time_stamps[id_date] / 1000.0, tz=timezone.utc)
+        res_months[id_date]=dt.month-1
+        res_year[id_date]=(dt.year-2013)/4.0
     
-    for t in range(mask.shape[0]):
-        if clouds != 2:
-            cover = np.count_nonzero(mask[t, clouds, :,:]>=proba_threshold)
-        else:
-            cover = np.count_nonzero((mask[t, 0, :,:]>=proba_threshold)) + np.count_nonzero((mask[t, 1, :,:]>=proba_threshold))
-        cover /= mask.shape[2]*mask.shape[3]
-        if cover < area_threshold:
-            dates_to_keep.append(t)
+    return res_months,res_year
 
-    return dates_to_keep
-
-
-def monthly_image(sp_patch, sp_raw_dates):
-    average_patch, average_dates = [], []
-    month_range = pd.period_range(start=sp_raw_dates[0].strftime('%Y-%m-%d'),
-                                  end=sp_raw_dates[-1].strftime('%Y-%m-%d'),
-                                  freq='M')
-
-    for m in month_range:
-        month_dates = [i for i, date in enumerate(sp_raw_dates)
-                       if date.month == m.month and date.year == m.year]
-
-        if month_dates:
-            average_patch.append(np.mean(sp_patch[month_dates], axis=0))
-            average_dates.append(datetime.datetime(m.year, m.month, 1))
-
-    return np.array(average_patch), average_dates
-
-
-def create_dataset(images, labels, sentinel_images, centroids,sentinel_products,sentinel_masks,aerial_mtd, name="tiny", mode="train", stats=None):
+def create_dataset_prec(name="tiny", mode="train",max_imgs=-1):
     """
     Creates an HDF5 dataset using the given sample indices (dico_idxs) from ds.
     If stats (per-channel mean/std) is None, computes it on-the-fly in a streaming fashion.
@@ -75,12 +49,27 @@ def create_dataset(images, labels, sentinel_images, centroids,sentinel_products,
     """
 
     # 1) Clean up any existing file
-    h5_path = f'./data/custom_flair/{name}_{mode}.h5'
+    h5_path = f'./data/custom_planted/{name}_{mode}.h5'
     del_file(h5_path)
+
+    dico_labels=load_json_to_dict("./data/labels.json")
   
-    # 2) If stats is not given, compute it in a streaming fashion
-    if stats is None:
-        stats =compute_channel_mean_std(images, labels, sentinel_images, centroids,sentinel_products,sentinel_masks,aerial_mtd)
+
+    s1_mean=torch.load("./data/normalisation/s1_mean.pt").numpy()
+    s1_std = torch.load("./data/normalisation/s1_std.pt").numpy()
+
+    s2_mean=torch.load("./data/normalisation/s2_mean.pt").numpy()
+    s2_std = torch.load("./data/normalisation/s2_std.pt").numpy()
+
+    l7_mean= torch.load("./data/normalisation/l7_mean.pt").numpy()
+    l7_std = torch.load("./data/normalisation/l7_std.pt").numpy()
+    
+    modis_mean= torch.load("./data/normalisation/modis_mean.pt").numpy()
+    modis_std = torch.load("./data/normalisation/modis_std.pt").numpy()
+
+    alos_mean= torch.load("./data/normalisation/alos_mean.pt").numpy()
+    alos_std = torch.load("./data/normalisation/alos_std.pt").numpy()
+ 
 
         
 
@@ -89,84 +78,296 @@ def create_dataset(images, labels, sentinel_images, centroids,sentinel_products,
     # 3) Create a new HDF5 file
     db = h5py.File(h5_path, 'w')
 
+    cpt_imgs=0
+    ids=get_ids_in_folder(base_path=f"./data/public/1.0.1/{mode}/")
+    for file_id in ids:
+        data=load_npz_by_id(file_id,base_path=f"./data/public/1.0.1/{mode}/")
+        for id in tqdm(range(data["s2"].shape[0])):
+            s1=(data["s1"][id]-s1_mean)/s1_std #shape (8,12,12,3) 
+            db.create_dataset(f's1_{cpt_imgs}', data=s1.astype(np.float16))
 
-    # 4) Iterate through your dictionary of IDs, fetch images, and store them
-    for idx_img in range(len(images)):
-        if idx_img>=1:
-            continue
+            s2=(data["s2"][id]-s2_mean)/s2_std #shape (8,12,12,10) 
+            db.create_dataset(f's2_{cpt_imgs}', data=s2.astype(np.float16))
+
+            l7=(data["l7"][id]-l7_mean)/l7_std #shape (20,4,4,6) 
+            db.create_dataset(f'l7_{cpt_imgs}', data=l7.astype(np.float16))
+
+            modis=(data["modis"][id]-modis_mean)/modis_std #shape (60,1,1,7)
+            db.create_dataset(f'modis_{cpt_imgs}', data=modis.astype(np.float16))
+
+            alos=(data["alos"][id]-alos_mean)/alos_std #shape (4,4,4,3)
+            db.create_dataset(f'alos_{cpt_imgs}', data=alos.astype(np.float16))
+            ###################################
+
+            s1_timestamps=data["s1_timestamps"][id] 
+            db.create_dataset(f's1_timestamps_{cpt_imgs}', data=s1_timestamps.astype(int))
+
+            s2_timestamps=data["s2_timestamps"][id]
+            db.create_dataset(f's2_timestamps_{cpt_imgs}', data=s2_timestamps.astype(int))
+                                             
+            l7_timestamps=data["l7_timestamps"][id] 
+            db.create_dataset(f'l7_timestamps_{cpt_imgs}', data=l7_timestamps.astype(int))
+
+            modis_timestamps=data["modis_timestamps"][id] 
+            db.create_dataset(f'modis_timestamps_{cpt_imgs}', data=modis_timestamps.astype(int))
+
+            alos_timestamps=data["alos_timestamps"][id]
+            db.create_dataset(f'alos_timestamps_{cpt_imgs}', data=alos_timestamps.astype(int))
+
+            s1_mask=data["s1_mask"][id] 
+            db.create_dataset(f's1_mask_{cpt_imgs}', data=s1_mask.astype(np.uint8))
+
+            s2_mask=data["s2_mask"][id] 
+            db.create_dataset(f's2_mask_{cpt_imgs}', data=s2_mask.astype(np.uint8))
+
+            l7_mask=data["l7_mask"][id] 
+            db.create_dataset(f'l7_mask_{cpt_imgs}', data=l7_mask.astype(np.uint8))
+
+            modis_mask=data["modis_mask"][id]
+            db.create_dataset(f'modis_mask_{cpt_imgs}', data=modis_mask.astype(np.uint8))
+
+            alos_mask=data["alos_mask"][id] 
+            db.create_dataset(f'alos_mask_{cpt_imgs}', data=alos_mask.astype(np.uint8))
+
+         
+            label_id=int(dico_labels[str(data["species"][id])]["id"])
+            db.create_dataset(f'label_{cpt_imgs}', data=label_id)
+            cpt_imgs+=1
+
+            if max_imgs!=-1 and cpt_imgs>max_imgs:
+                db.close()
+                return
         
-        im_aer,mask,sen_spatch,img_dates,sen_mask,aerial_date=get_sample(idx_img,images, labels, sentinel_images, centroids,sentinel_products,sentinel_masks,aerial_mtd, palette=lut_colors)
-        
-        
-
-        # Convert to float (if needed) before normalization
-        im_aer = im_aer.astype(float)
-        sen_spatch=sen_spatch.astype(float)
-        mask=mask.astype(int)
 
 
-        # Apply per-channel normalization
-        # normalized_value = (value - mean[channel]) / std[channel]
-        
-        #im_aer = (im_aer - stats["im_mean"][:, None, None]) / stats["im_std"][:, None, None]
-        #sen_spatch = (sen_spatch - stats["sen_mean"][:, None, None]) / stats["sen_std"][:, None, None]
+
+def create_dataset_ancien(name="tiny", mode="train", max_imgs=-1):
+    h5_path = f'./data/custom_planted/{name}_{mode}.h5'
+    del_file(h5_path)
+
+    dico_labels = load_json_to_dict("./data/labels.json")
+    ids = get_ids_in_folder(base_path=f"./data/public/1.0.1/{mode}/")
+
+    # Load normalization stats
+    def load_norm(name):
+        mean = torch.load(f"./data/normalisation/{name}_mean.pt").numpy()
+        std = torch.load(f"./data/normalisation/{name}_std.pt").numpy()
+        return mean, std
+
+    s1_mean, s1_std = load_norm("s1")
+    s2_mean, s2_std = load_norm("s2")
+    l7_mean, l7_std = load_norm("l7")
+    modis_mean, modis_std = load_norm("modis")
+    alos_mean, alos_std = load_norm("alos")
+
+    # Pre-collect to count total number of samples
+    total_samples = sum(load_npz_by_id(fid, base_path=f"./data/public/1.0.1/{mode}/")["s2"].shape[0] for fid in ids)
+
+    if max_imgs != -1:
+        total_samples = min(max_imgs, total_samples)
+
+    print(f"Total samples to write: {total_samples}")
+
+    BATCH_SIZE = 128
+    buffer = {k: [] for k in shape_dict}
 
 
-        to_keep = filter_dates(sen_mask, clouds=2, area_threshold=0.5, proba_threshold=60)
-        sen_spatch = sen_spatch[to_keep]
-        img_dates=img_dates[to_keep]
+    # Create datasets
+    with h5py.File(h5_path, 'w') as db:
+        shape_dict = {
+            "s1":       (total_samples, 8, 12, 12, 3),
+            "s2":       (total_samples, 8, 12, 12, 10),
+            "l7":       (total_samples, 20, 4, 4, 6),
+            "modis":    (total_samples, 60, 1, 1, 7),
+            "alos":     (total_samples, 4, 4, 4, 3),
+            "s1_mask":  (total_samples, 8, 12, 12, 3),
+            "s2_mask":  (total_samples, 8, 12, 12, 10),
+            "l7_mask":  (total_samples, 20, 4, 4, 6),
+            "modis_mask": (total_samples, 60, 1, 1, 7),
+            "alos_mask":  (total_samples, 4, 4, 4, 3),
+            "s1_timestamps": (total_samples, 8),
+            "s2_timestamps": (total_samples, 8),
+            "l7_timestamps": (total_samples, 20),
+            "modis_timestamps": (total_samples, 60),
+            "alos_timestamps": (total_samples, 4),
+            "label": (total_samples,)
+        }
+
+        # Initialize all datasets
+        datasets = {
+            key: db.create_dataset(key, shape=shape, dtype=np.float16 if "mask" not in key and "timestamps" not in key and key != "label" else np.uint8 if "mask" in key else int,
+                                   compression="gzip", compression_opts=4)
+            for key, shape in shape_dict.items()
+        }
+
+        cpt_imgs = 0
+        for file_id in ids:
+            data = load_npz_by_id(file_id, base_path=f"./data/public/1.0.1/{mode}/")
+            num_samples = data["s2"].shape[0]
+
+            for i in tqdm(range(num_samples)):
+                if cpt_imgs >= total_samples:
+                    break
+
+                datasets["s1"][cpt_imgs] = ((data["s1"][i] - s1_mean) / s1_std).astype(np.float16)
+                datasets["s2"][cpt_imgs] = ((data["s2"][i] - s2_mean) / s2_std).astype(np.float16)
+                datasets["l7"][cpt_imgs] = ((data["l7"][i] - l7_mean) / l7_std).astype(np.float16)
+                datasets["modis"][cpt_imgs] = ((data["modis"][i] - modis_mean) / modis_std).astype(np.float16)
+                datasets["alos"][cpt_imgs] = ((data["alos"][i] - alos_mean) / alos_std).astype(np.float16)
+
+                datasets["s1_mask"][cpt_imgs] = data["s1_mask"][i].astype(bool)
+                datasets["s2_mask"][cpt_imgs] = data["s2_mask"][i].astype(bool)
+                datasets["l7_mask"][cpt_imgs] = data["l7_mask"][i].astype(bool)
+                datasets["modis_mask"][cpt_imgs] = data["modis_mask"][i].astype(bool)
+                datasets["alos_mask"][cpt_imgs] = data["alos_mask"][i].astype(bool)
+
+                datasets["s1_timestamps"][cpt_imgs] = (data["s1_timestamps"][i]/1000).astype(np.uint32)
+                datasets["s2_timestamps"][cpt_imgs] = (data["s2_timestamps"][i]/1000).astype(np.uint32)
+                datasets["l7_timestamps"][cpt_imgs] = (data["l7_timestamps"][i]/1000).astype(np.uint32)
+                datasets["modis_timestamps"][cpt_imgs] = (data["modis_timestamps"][i]/1000).astype(np.uint32)
+                datasets["alos_timestamps"][cpt_imgs] = (data["alos_timestamps"][i]/1000).astype(np.uint32)
+
+                label_id = int(dico_labels[str(data["species"][i])]["id"])
+                datasets["label"][cpt_imgs] = label_id
+
+                cpt_imgs += 1
+
+            if cpt_imgs >= total_samples:
+                break
 
 
-        sen_spatch, img_dates =monthly_image(sen_spatch, img_dates)
+def create_dataset(name="tiny", mode="train", max_imgs=-1):
+    import h5py
+    import numpy as np
+    import torch
+    from tqdm import tqdm
 
-        days=[]
-        months=[]
-        years=[]
-        for tmp_date in img_dates:
-            tmp_day=tmp_date.day 
-            tmp_month=tmp_date.month
-            tmp_year=tmp_date.year
-            days.append(tmp_day)
-            months.append(tmp_month)
-            years.append(tmp_year)
+    # Remove any existing file
+    h5_path = f'./data/custom_planted/{name}_{mode}.h5'
+    del_file(h5_path)
 
+    dico_labels = load_json_to_dict("./data/labels.json")
+    ids = get_ids_in_folder(base_path=f"./data/public/1.0.1/{mode}/")
 
-        
+    # Load normalization statistics (assumes torch tensors saved as .pt files)
+    def load_norm(band_name):
+        mean = torch.load(f"./data/normalisation/{band_name}_mean.pt").numpy()
+        std = torch.load(f"./data/normalisation/{band_name}_std.pt").numpy()
+        return mean, std
 
+    s1_mean, s1_std = load_norm("s1")
+    s2_mean, s2_std = load_norm("s2")
+    l7_mean, l7_std = load_norm("l7")
+    modis_mean, modis_std = load_norm("modis")
+    alos_mean, alos_std = load_norm("alos")
 
-        im_aer = im_aer.astype(np.float32)
-        sen_spatch = sen_spatch.astype(np.float32)
-        days = np.array(days, dtype=np.float32)
-        months = np.array(months, dtype=np.float32)
-        years = np.array(years, dtype=np.float32)
-        mask = mask.astype(np.float32)
-        mask[mask>13]=13
-        
-        sen_mask = sen_mask.astype(np.float32)
+    # Pre-calculate total number of samples (from all files)
+    total_samples = 0
+    for fid in ids:
+        data = load_npz_by_id(fid, base_path=f"./data/public/1.0.1/{mode}/")
+        total_samples += data["s2"].shape[0]
+    if max_imgs != -1:
+        total_samples = min(max_imgs, total_samples)
+    print(f"Total samples to write: {total_samples}")
 
+    # Define dataset shapes
+    shape_dict = {
+        "s1":           (total_samples, 8, 12, 12, 3),
+        "s2":           (total_samples, 8, 12, 12, 10),
+        "l7":           (total_samples, 20, 4, 4, 6),
+        "modis":        (total_samples, 60, 1, 1, 7),
+        "alos":         (total_samples, 4, 4, 4, 3),
+        "s1_mask":      (total_samples, 8, 12, 12, 3),
+        "s2_mask":      (total_samples, 8, 12, 12, 10),
+        "l7_mask":      (total_samples, 20, 4, 4, 6),
+        "modis_mask":   (total_samples, 60, 1, 1, 7),
+        "alos_mask":    (total_samples, 4, 4, 4, 3),
+        "s1_timestamps":(total_samples, 8),
+        "s2_timestamps":(total_samples, 8),
+        "l7_timestamps":(total_samples, 20),
+        "modis_timestamps": (total_samples, 60),
+        "alos_timestamps":  (total_samples, 4),
+        "label":        (total_samples,)
+    }
 
- 
+    # Open the HDF5 file and create datasets (no compression)
+    with h5py.File(h5_path, 'w') as db:
+        datasets = {}
+        for key, shape in shape_dict.items():
+            if key == "label":
+                dtype = int
+            elif "mask" in key:
+                dtype = np.uint8  # storing booleans as uint8
+            elif "timestamps" in key:
+                dtype = int
+            else:
+                dtype = np.float16
+            datasets[key] = db.create_dataset(key, shape=shape, dtype=dtype)
 
+        global_index = 0
+        # Process each file in a vectorized manner
+        for file_id in tqdm(ids, desc="Processing files"):
+            data = load_npz_by_id(file_id, base_path=f"./data/public/1.0.1/{mode}/")
+            num_samples_file = data["s2"].shape[0]
 
-        
-        
-        # Convert back to numpy to store in HDF5
-        db.create_dataset(f'img_aerial_{idx_img}', data=im_aer)
-        db.create_dataset(f'img_sen_{idx_img}', data=sen_spatch)
-        db.create_dataset(f'days_{idx_img}', data=days)
-        db.create_dataset(f'months_{idx_img}', data=months)
-        db.create_dataset(f'years_{idx_img}', data=years)
-        db.create_dataset(f'mask_{idx_img}',data=mask)
-        db.create_dataset(f'sen_mask_{idx_img}',data=sen_mask)
-        db.create_dataset(f'aerial_mtd_{idx_img}',data=aerial_date)
-  
+            # If adding the entire file overshoots max_imgs, trim the arrays accordingly
+            if global_index + num_samples_file > total_samples:
+                num_samples_file = total_samples - global_index
 
+            # Process normalization over all samples from this file at once
+            s1_norm = ((data["s1"][:num_samples_file] - s1_mean) / s1_std).astype(np.float16)
+            s2_norm = ((data["s2"][:num_samples_file] - s2_mean) / s2_std).astype(np.float16)
+            l7_norm = ((data["l7"][:num_samples_file] - l7_mean) / l7_std).astype(np.float16)
+            modis_norm = ((data["modis"][:num_samples_file] - modis_mean) / modis_std).astype(np.float16)
+            alos_norm = ((data["alos"][:num_samples_file] - alos_mean) / alos_std).astype(np.float16)
 
-    db.close()
+            # Process masks (cast to uint8 for storage)
+            s1_mask = data["s1_mask"][:num_samples_file].astype(np.uint8)
+            s2_mask = data["s2_mask"][:num_samples_file].astype(np.uint8)
+            l7_mask = data["l7_mask"][:num_samples_file].astype(np.uint8)
+            modis_mask = data["modis_mask"][:num_samples_file].astype(np.uint8)
+            alos_mask = data["alos_mask"][:num_samples_file].astype(np.uint8)
 
+            # Process timestamps (dividing by 1000 and converting)
+            s1_timestamps = (data["s1_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
+            s2_timestamps = (data["s2_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
+            l7_timestamps = (data["l7_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
+            modis_timestamps = (data["modis_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
+            alos_timestamps = (data["alos_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
 
-    
-            
+            # Process labels. Here we loop over the file's samples to convert species strings to IDs.
+            # This step could be further optimized if a vectorized mapping is available.
+            labels = np.empty(num_samples_file, dtype=int)
+            for i in range(num_samples_file):
+                labels[i] = int(dico_labels[str(data["species"][i])]["id"])
+
+            # Write all processed arrays to the corresponding slice in the HDF5 datasets
+            start_idx = global_index
+            end_idx = global_index + num_samples_file
+            datasets["s1"][start_idx:end_idx] = s1_norm
+            datasets["s2"][start_idx:end_idx] = s2_norm
+            datasets["l7"][start_idx:end_idx] = l7_norm
+            datasets["modis"][start_idx:end_idx] = modis_norm
+            datasets["alos"][start_idx:end_idx] = alos_norm
+
+            datasets["s1_mask"][start_idx:end_idx] = s1_mask
+            datasets["s2_mask"][start_idx:end_idx] = s2_mask
+            datasets["l7_mask"][start_idx:end_idx] = l7_mask
+            datasets["modis_mask"][start_idx:end_idx] = modis_mask
+            datasets["alos_mask"][start_idx:end_idx] = alos_mask
+
+            datasets["s1_timestamps"][start_idx:end_idx] = s1_timestamps
+            datasets["s2_timestamps"][start_idx:end_idx] = s2_timestamps
+            datasets["l7_timestamps"][start_idx:end_idx] = l7_timestamps
+            datasets["modis_timestamps"][start_idx:end_idx] = modis_timestamps
+            datasets["alos_timestamps"][start_idx:end_idx] = alos_timestamps
+
+            datasets["label"][start_idx:end_idx] = labels
+
+            global_index = end_idx
+            if global_index >= total_samples:
+                break
+
 
 
 
@@ -179,176 +380,106 @@ import random
 import torch
 from torchvision.transforms.functional import rotate, hflip, vflip
 
-class CustomFLAIR(Dataset):
+import torch
+from torch.utils.data import Dataset
+import h5py
+import random
+from torchvision.transforms.functional import rotate, hflip, vflip
+
+class CustomPlantnet(Dataset):
     def __init__(self, file_path, config=None, trans_config=None, augment=True):
         self.file_path = file_path
-        self.num_samples = None
         self.config = config
         self.trans_config = trans_config
         self.augment = augment
 
-        self._initialize_file()
-
-    def _initialize_file(self):
         with h5py.File(self.file_path, 'r') as f:
-            self.num_samples = len(f.keys()) // 8
+            self.num_samples = f["s1"].shape[0]  # all modalities have the same first dimension
 
     def __len__(self):
         return self.num_samples
 
-    def set_modality_mode(self, mode):
-        self.modality_mode = mode
-
-    def reset_modality_mode(self):
-        self.modality_mode = self.original_mode
-
-    def process_mask(self, mask):
-        mask = mask.float()
-        mask[mask > 13] = 13
-        mask = mask - 1
-        return mask
-
-    def apply_transforms(self, im_aerial, mask, im_sen):
-        # Random rotation angle
-        angles = [0, 90, 180, 270]
-        angle = random.choice(angles)
-
-        # Apply rotation consistently
-        im_aerial = rotate(im_aerial, angle)
-        mask = rotate(mask.unsqueeze(0), angle).squeeze(0)  # mask is [H,W]
-
-        # im_sen shape [T, C, H, W] -> rotate each channel identically
-       
-        for t in range(im_sen.shape[0]):  # 12 time points
-      
-            for c in range(im_sen.shape[1]):  # 10 channels
-                
-                rotated_channel = rotate(im_sen[t, c].unsqueeze(0), angle).squeeze(0)
-                im_sen[t, c]=rotated_channel
-            
-
-        # Random horizontal flip
-        if random.random() > 0.5:
-            im_aerial = hflip(im_aerial)
-            mask = hflip(mask.unsqueeze(0)).squeeze(0)
-            im_sen = im_sen.flip(-1)
-
-        # Random vertical flip
-        if random.random() > 0.5:
-            im_aerial = vflip(im_aerial)
-            mask = vflip(mask.unsqueeze(0)).squeeze(0)
-            im_sen = im_sen.flip(-2)
-
-        return im_aerial, mask, im_sen
 
     def __getitem__(self, idx):
         with h5py.File(self.file_path, 'r') as f:
-            im_aerial = torch.tensor(f[f'img_aerial_{idx}'][:], dtype=torch.float32)  # [5,512,512]
-            im_sen = torch.tensor(f[f'img_sen_{idx}'][:], dtype=torch.float32)  # [12,10,40,40]
-            days = torch.tensor(f[f'days_{idx}'][:], dtype=torch.float32)
-            months = torch.tensor(f[f'months_{idx}'][:], dtype=torch.float32)
-            years = torch.tensor(f[f'years_{idx}'][:], dtype=torch.float32)
-            mask = torch.tensor(f[f'mask_{idx}'][:], dtype=torch.float32)  # [512,512]
-            sen_mask = f[f'sen_mask_{idx}'][:]
-            aerial_date = f[f'aerial_mtd_{idx}'].asstr()[()]
+            # Load modalities (you can combine or subset these as needed)
+            #s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [8,12,12,3]
 
+
+            label=s2_dates = f["label"][idx]
+
+            tokens_list=[]
+            token_masks_wavelength=[]
+            if self.config["dataset"]["S2"]:
+                s2 = torch.tensor(f["s2"][idx], dtype=torch.float32)        # [8,12,12,10]
+                s2_dates = f["s2_timestamps"][idx]  # Just example — you can build years/months/days here if needed
+                s2_mask = torch.tensor(f["s2_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
+                tokens_s2=self.trans_config.apply_transformations_sen2(s2,s2_dates,s2_mask)
+                token_masks_wavelength.append(torch.ones(tokens_s2.shape[0]))
+                tokens_list.append(tokens_s2)
+
+            if self.config["dataset"]["L7"]:
+                l7 = torch.tensor(f["l7"][idx], dtype=torch.float32)        # [20,4,4,6]
+                l7_dates = f["l7_timestamps"][idx]  # Just example — you can build years/months/days here if needed
+                l7_mask = torch.tensor(f["l7_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
+                tokens_l7=self.trans_config.apply_transformations_l7(l7,l7_dates,l7_mask)
+                token_masks_wavelength.append(torch.ones(tokens_l7.shape[0]))
+                tokens_list.append(tokens_l7)
+
+            if self.config["dataset"]["MODIS"]:
+                modis = torch.tensor(f["modis"][idx], dtype=torch.float32)        # [20,4,4,6]
+                modis_dates = f["modis_timestamps"][idx]  # Just example — you can build years/months/days here if needed
+                modis_mask = torch.tensor(f["modis_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
+                tokens_modis=self.trans_config.apply_transformations_modis(modis,modis_dates,modis_mask)
+                token_masks_wavelength.append(torch.ones(tokens_modis.shape[0]))
+                tokens_list.append(tokens_modis)
+
+            if self.config["dataset"]["S1"]:
+                s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [20,4,4,6]
+                s1_dates = f["s1_timestamps"][idx]  # Just example — you can build years/months/days here if needed
+                s1_mask = torch.tensor(f["s1_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
+                tokens_s1=self.trans_config.apply_transformations_sen1(s1,s1_dates,s1_mask)
+                token_masks_wavelength.append(torch.ones(tokens_s1.shape[0])*2)
+                tokens_list.append(tokens_s1)
+
+            if self.config["dataset"]["ALOS"]:
+                alos = torch.tensor(f["alos"][idx], dtype=torch.float32)        # [20,4,4,6]
+                alos_dates = f["alos_timestamps"][idx]  # Just example — you can build years/months/days here if needed
+                alos_mask = torch.tensor(f["alos_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
+                tokens_alos=self.trans_config.apply_transformations_alos(alos,alos_dates,alos_mask)
+                token_masks_wavelength.append(torch.ones(tokens_alos.shape[0])*3)
+                tokens_list.append(tokens_alos)
+
+
+            tokens=torch.cat(tokens_list,dim=0)
+            token_masks_w=torch.cat(token_masks_wavelength,dim=0)
+
+
+
+
+            
+
+  
+
+
+            # Mask (choose one)
+            
+
+            # Optionally apply augmentations
             #if self.augment:
-            #    im_aerial, mask, im_sen = self.apply_transforms(im_aerial, mask, im_sen)
+            #    s2, mask = self.apply_transforms(s2, mask)
 
-            data = (im_aerial, mask, im_sen, (years, months, days), aerial_date)
+            # Assemble input
+            #data = (None, mask, s2.permute(0, 4, 1, 2), (years, months, days), "dummy")  # s2: [T, C, H, W]
 
-            tokens, tokens_mask, attention_mask = self.trans_config.apply_transformations_atomiser(data)
+            #tokens, tokens_mask, attention_mask = self.trans_config.apply_transformations_atomiser(data)
 
-            tokens = tokens.float()
-            tokens_mask = tokens_mask.float()
-            mask = self.process_mask(mask)
+            #tokens = tokens.float()
+            #tokens_mask = tokens_mask.float()
+            #mask = self.process_mask(mask)
 
-        return tokens, tokens_mask, attention_mask, mask[0]
+        return tokens,token_masks_w,label
 
-  
-  
-import torch
-import random
-from torch.utils.data import DataLoader, Sampler
-from tqdm import tqdm
-import torch.distributed as dist
-
-class DistributedShapeBasedBatchSampler(Sampler):
-    """
-    A distributed batch sampler that groups samples by shape and partitions the batches
-    across GPUs. Each process only sees a subset of the batches based on its rank.
-    """
-    def __init__(self, dataset, batch_size, shuffle=True, drop_last=True, rank=None, world_size=None):
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.drop_last = drop_last
-
-        # Set up distributed parameters.
-        if rank is None:
-            if dist.is_available() and dist.is_initialized():
-                rank = dist.get_rank()
-            else:
-                rank=0
-            if not dist.is_available():
-                raise RuntimeError("Requires distributed package to be available")
-        if world_size is None:
-            if dist.is_available() and dist.is_initialized():
-                world_size = dist.get_world_size()
-            else:
-                world_size = 1
-        self.rank = rank
-        self.world_size = world_size
-
-        # Group indices by image shape.
-        self.shape_to_indices = {}
-        # Use a temporary DataLoader to iterate over the dataset (batch_size=1).
-        loader = DataLoader(dataset, batch_size=1, num_workers=8, shuffle=False)
-        for idx, data in tqdm(enumerate(loader), desc="Sampler initialization"):
-            # Assuming each sample returns (image, label, ...); adjust as needed.
-            image = data[0]
-            # Convert image.shape (a torch.Size) to a tuple so it can be used as a key.
-            shape_key = tuple(image.shape)
-            self.shape_to_indices.setdefault(shape_key, []).append(idx)
-        
-        # Create batches from the groups.
-        self.batches = []
-        for indices in tqdm(self.shape_to_indices.values(), desc="Batch creation"):
-            random.shuffle(indices)
-            # Create batches for this shape group.
-            for i in range(0, len(indices), self.batch_size):
-                batch = indices[i:i+self.batch_size]
-                if len(batch) == self.batch_size:
-                    self.batches.append(batch)
-        
-        if self.shuffle:
-            random.shuffle(self.batches)
-        
-        # Make sure total number of batches is divisible by the number of processes.
-        total_batches = len(self.batches)
-        remainder = total_batches % self.world_size
-        if remainder != 0:
-            if not self.drop_last:
-                # Pad with extra batches (repeating from the beginning) so each process has equal work.
-                pad_size = self.world_size - remainder
-                self.batches.extend(self.batches[:pad_size])
-                total_batches = len(self.batches)
-            else:
-                # If dropping last incomplete batches, remove the excess.
-                total_batches = total_batches - remainder
-                self.batches = self.batches[:total_batches]
-        self.total_batches = total_batches
-
-    def __iter__(self):
-        if self.shuffle:
-            random.shuffle(self.batches)
-        for i in range(self.rank, self.total_batches, self.world_size):
-            batch = self.batches[i]
-            yield batch
-
-    def __len__(self):
-        # Number of batches that this process will iterate over.
-        return self.total_batches // self.world_size
 
 
 

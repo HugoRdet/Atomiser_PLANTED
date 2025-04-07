@@ -6,6 +6,8 @@ from math import pi
 import einops 
 import datetime
 import numpy as np
+import datetime
+
 
 def fourier_encode(x, max_freq, num_bands = 4):
     x = x.unsqueeze(-1)
@@ -33,9 +35,15 @@ class transformations_config_flair:
 
     def __init__(self,bands_yaml,config):
       
-        self.bands_sen_infos=read_yaml(bands_yaml)["bands_sen_info"]
-        self.bands_aer_infos=read_yaml(bands_yaml)["bands_aer_info"]
+        self.bands_yaml=read_yaml(bands_yaml)
+        self.bands_sen2_infos=self.bands_yaml["bands_sen2_info"]
+        self.bands_l7_infos=self.bands_yaml["bands_l7_info"]
+        self.bands_modis_infos=self.bands_yaml["bands_modis_info"]
+        self.bands_sen1_infos=self.bands_yaml["bands_sen1_info"]
+        self.bands_alos_infos=self.bands_yaml["bands_alos_info"]
+
         self.config=config
+        print(self.config)
         self.nb_tokens_limit=config["trainer"]["max_tokens"]
 
         self.gaussian_means=[]
@@ -65,7 +73,11 @@ class transformations_config_flair:
         if self.config["Atomiser"][attribute+"_encoding"]=="FF":
             if self.config["Atomiser"][attribute+"_num_freq_bands"]==-1:
                 return int(self.config["Atomiser"][attribute+"_max_freq"])*2+1
-            return int(self.config["Atomiser"][attribute+"_num_freq_bands"])*2+1
+            else:
+                return int(self.config["Atomiser"][attribute+"_num_freq_bands"])*2+1
+        
+        if self.config["Atomiser"][attribute+"_encoding"]=="GAUSSIANS":
+            return int(len(self.config["wavelengths_encoding"].keys()))
 
         
 
@@ -246,17 +258,18 @@ class transformations_config_flair:
             return self.encoded_fourier_wavength[(int(wavelength),int(bandwidth),int(img_size))]
     
 
-    def time_processing(self,date,img_size):
-        year=date.year
-        day_of_year = date.timetuple().tm_yday
+    def time_processing(self,time_stamp,img_size):
+        dt=datetime.datetime.fromtimestamp(time_stamp/1000)
         
-        y_r=(2021-year)/4.0
-        d_m=day_of_year/366.0
+        day=(dt.timetuple().tm_yday - 1)/366.0
+        year=(dt.year-1999)/27
 
-        if self.config["Atomiser"]["day_encoding"]=="NATURAL":
-            y_r_encoding= torch.full((1, img_size, img_size), y_r)
-            d_m_encoding= torch.full((1, img_size, img_size), d_m)
-            raise("not implemented")
+        y_max_freq=self.config["Atomiser"]["year_max_freq"]
+        y_num_bands=self.config["Atomiser"]["year_num_freq_bands"]
+        d_max_freq=self.config["Atomiser"]["day_max_freq"]
+        d_num_bands=self.config["Atomiser"]["day_num_freq_bands"]
+
+      
 
             
 
@@ -266,123 +279,365 @@ class transformations_config_flair:
             d_max_freq=self.config["Atomiser"]["day_max_freq"]
             d_num_bands=self.config["Atomiser"]["day_num_freq_bands"]
 
-            year_encoding=self.fourier_encode_scalar(y_r,img_size,y_max_freq,y_num_bands)
-            day_encoding=self.fourier_encode_scalar(d_m,img_size,d_max_freq,d_num_bands)
-            return  torch.cat([year_encoding,day_encoding],dim=0)
+            year_encoding=self.fourier_encode_scalar(day,img_size,y_max_freq,y_num_bands)
+            day_encoding=self.fourier_encode_scalar(year,img_size,d_max_freq,d_num_bands)
+
+            year_encoding=self.fourier_encode_scalar(year,img_size,y_max_freq,y_num_bands)
+            day_encoding=self.fourier_encode_scalar(day,img_size,d_max_freq,d_num_bands)
+            time_encoding=torch.cat([year_encoding,day_encoding],dim=0)
+            
+            return  time_encoding
+        return None
          
 
 
-    def apply_transformations_aer(self,im_aerial,date_aerial):
-        im_aerial = im_aerial.unsqueeze(dim=0)
-        img_size=im_aerial.shape[2]
-
-   
-        token_masks=torch.ones((int(im_aerial.shape[1]*im_aerial.shape[2]*im_aerial.shape[3])))*-1
-        
-        token_masks_id=0
-        tokens_list=[]
-
-        #aerial images handling
-        for index_channel in range(5):
-
-            channel_id = self.get_band_identifier(self.bands_aer_infos,index_channel)
-            
-            infos = self.get_band_infos(self.bands_aer_infos,channel_id)
-            date_obj = datetime.datetime.strptime(date_aerial, '%Y-%m-%d')
-            time_processing=self.time_processing(date_obj,img_size)
-
-            # Extract the channel and process it
-            img_channel = im_aerial[:, index_channel]  # shape: (1, H, W)
-            value_processed=self.get_bvalue_processing(img_channel)
-       
-
-            #positional encoding
-            resolution_value=float(infos["resolution"])
-            band_post_proc = self.get_positional_processing(img_channel,resolution_value )
-   
-            
-            #wavelength encoding
-            tmp_central_wavelength=float(infos["central_wavelength"])
-            tmp_bandwidth=float(infos["bandwidth"])
-            central_wavelength_processing,bool_verif=self.wavelength_processing(tmp_central_wavelength,tmp_bandwidth,img_size)
-            
-            if not bool_verif:
-                token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
-        
-            token = torch.cat(
-                [value_processed,
-                central_wavelength_processing,
-                band_post_proc,
-                time_processing],
-                dim=0
-            ).unsqueeze(0)
-            tokens_list.append(token)
-            token_masks_id+=img_size*img_size
-
-        # Concatenate tokens from all channels at once
-        tokens = torch.cat(tokens_list, dim=0)
-        tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
-
-        return tokens,token_masks
     
     
 
     
     
-    def apply_transformations_sen(self,im_sen,date_sen):
-        im_sen = im_sen.unsqueeze(dim=0)
+    def apply_transformations_sen2(self,im_sen,dates_sen,mask_sen):
+        im_sen = im_sen.unsqueeze(dim=0) # 1;8;12;12;3
         img_size=im_sen.shape[2]
 
         tokens_list = []
+        token_masks=einops.rearrange(mask_sen,"t h w c -> (t h w c)")
 
-
-        token_masks=torch.ones((im_sen.shape[0]*im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]))*-1
         
-        token_masks_id=0
         
 
         #aerial images handling
-        for index_channel in range(len(self.bands_sen_infos.keys())):
+        for t in range(im_sen.shape[1]):
 
-            channel_id = self.get_band_identifier(self.bands_sen_infos,index_channel)
-            infos = self.get_band_infos(self.bands_sen_infos,channel_id)
-
-            time_processing=self.time_processing(date_sen,img_size)
-        
-            # Extract the channel and process it
-            img_channel = im_sen[:, index_channel]  # shape: (1, H, W)
-            value_processed=self.get_bvalue_processing(img_channel)
-       
-
-            #positional encoding
-            resolution_value=float(infos["resolution"])
-            band_post_proc = self.get_positional_processing(img_channel,resolution_value )
-         
-            #wavelength encoding
-            tmp_central_wavelength=float(infos["central_wavelength"])
-            tmp_bandwidth=float(infos["bandwidth"])
-            central_wavelength_processing,bool_verif=self.wavelength_processing(tmp_central_wavelength,tmp_bandwidth,img_size)
             
-            if not bool_verif:
-                token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+            time_encoding=self.time_processing(dates_sen[t],img_size)
 
-            # Concatenate all components for this channel in one go
-            token = torch.cat(
-                [value_processed,
-                central_wavelength_processing,
-                band_post_proc,
-                time_processing],
-                dim=0
-            ).unsqueeze(0)
-            tokens_list.append(token)
-            token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+            for index_channel in range(len(self.bands_sen2_infos.keys())):
 
-        # Concatenate tokens from all channels at once
+
+                L_channel_tokens=[]
+                channel_id = self.get_band_identifier(self.bands_sen2_infos,index_channel)
+                infos = self.get_band_infos(self.bands_sen2_infos,channel_id)
+
+                #wavelength encoding
+                tmp_central_wavelength=float(infos["central_wavelength"])
+                tmp_bandwidth=float(infos["bandwidth"])
+                central_wavelength_processing,bool_verif=self.wavelength_processing(tmp_central_wavelength,tmp_bandwidth,img_size)
+                L_channel_tokens.append(central_wavelength_processing)
+
+                #time_processing=self.time_processing(date_sen,img_size)
+            
+                # Extract the channel and process it
+                img_channel = im_sen[:,t,:,:, index_channel]  # shape: (1, H, W)
+                value_processed=self.get_bvalue_processing(img_channel)
+                L_channel_tokens.append(value_processed)
+        
+
+                #positional encoding
+                resolution_value=float(infos["resolution"])
+                band_post_proc = self.get_positional_processing(img_channel,resolution_value )
+                L_channel_tokens.append(band_post_proc)
+            
+                
+
+                if self.config["Atomiser"]["day_encoding"]=="FF":
+                    L_channel_tokens.append(time_encoding)
+
+
+                
+                #if not bool_verif:
+                #    token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+
+                # Concatenate all components for this channel in one go
+                tokens = torch.cat(
+                    L_channel_tokens,
+                    dim=0
+                ).unsqueeze(0)
+
+
+                tokens_list.append(tokens)
+                #token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+
+     
         tokens = torch.cat(tokens_list, dim=0)
         tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
+        tokens=tokens[token_masks==1,:]
+    
+
+        return tokens
+    
+    def apply_transformations_l7(self,im_sen,dates_sen,mask_sen):
+        im_sen = im_sen.unsqueeze(dim=0) # 1;20;4;4;6
+        img_size=im_sen.shape[2]
+
+        tokens_list = []
+        token_masks=einops.rearrange(mask_sen,"t h w c -> (t h w c)")
+
+        
         
 
-        return tokens,token_masks
+        for t in range(im_sen.shape[1]):       
+            time_encoding=self.time_processing(dates_sen[t],img_size)
+
+            for index_channel in range(len(self.bands_l7_infos.keys())):
+
+
+                L_channel_tokens=[]
+                channel_id = self.get_band_identifier(self.bands_l7_infos,index_channel)
+                infos = self.get_band_infos(self.bands_l7_infos,channel_id)
+
+                #wavelength encoding
+                tmp_central_wavelength=float(infos["central_wavelength"])
+                tmp_bandwidth=float(infos["bandwidth"])
+                central_wavelength_processing,bool_verif=self.wavelength_processing(tmp_central_wavelength,tmp_bandwidth,img_size)
+                L_channel_tokens.append(central_wavelength_processing)
+
+                #time_processing=self.time_processing(date_sen,img_size)
+            
+                # Extract the channel and process it
+                img_channel = im_sen[:,t,:,:, index_channel]  # shape: (1, H, W)
+                value_processed=self.get_bvalue_processing(img_channel)
+                L_channel_tokens.append(value_processed)
+        
+
+                #positional encoding
+                resolution_value=float(infos["resolution"])
+                band_post_proc = self.get_positional_processing(img_channel,resolution_value )
+                L_channel_tokens.append(band_post_proc)
+            
+                
+
+                if self.config["Atomiser"]["day_encoding"]=="FF":
+                    L_channel_tokens.append(time_encoding)
+
+
+                
+                #if not bool_verif:
+                #    token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+
+                # Concatenate all components for this channel in one go
+                tokens = torch.cat(
+                    L_channel_tokens,
+                    dim=0
+                ).unsqueeze(0)
+
+                tokens_list.append(tokens)
+                #token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+
+     
+        tokens = torch.cat(tokens_list, dim=0)
+        tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
+        tokens=tokens[token_masks==1,:]
+    
+   
+        return tokens
+    
+    def apply_transformations_modis(self,im_sen,dates_sen,mask_sen):
+        im_sen = im_sen.unsqueeze(dim=0) # 1;20;4;4;6
+        img_size=im_sen.shape[2]
+
+        tokens_list = []
+        token_masks=einops.rearrange(mask_sen,"t h w c -> (t h w c)")
+
+        
+        
+
+        for t in range(im_sen.shape[1]):       
+            time_encoding=self.time_processing(dates_sen[t],img_size)
+
+            for index_channel in range(len(self.bands_modis_infos.keys())):
+
+
+                L_channel_tokens=[]
+                channel_id = self.get_band_identifier(self.bands_modis_infos,index_channel)
+                infos = self.get_band_infos(self.bands_modis_infos,channel_id)
+
+                #wavelength encoding
+                tmp_central_wavelength=float(infos["central_wavelength"])
+                tmp_bandwidth=float(infos["bandwidth"])
+                central_wavelength_processing,bool_verif=self.wavelength_processing(tmp_central_wavelength,tmp_bandwidth,img_size)
+                L_channel_tokens.append(central_wavelength_processing)
+
+                #time_processing=self.time_processing(date_sen,img_size)
+            
+                # Extract the channel and process it
+                img_channel = im_sen[:,t,:,:, index_channel]  # shape: (1, H, W)
+                value_processed=self.get_bvalue_processing(img_channel)
+                L_channel_tokens.append(value_processed)
+        
+
+                #positional encoding
+                resolution_value=float(infos["resolution"])
+                band_post_proc = self.get_positional_processing(img_channel,resolution_value )
+                L_channel_tokens.append(band_post_proc)
+                
+            
+                
+
+                if self.config["Atomiser"]["day_encoding"]=="FF":
+                    L_channel_tokens.append(time_encoding)
+
+
+                
+                #if not bool_verif:
+                #    token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+
+                # Concatenate all components for this channel in one go
+                tokens = torch.cat(
+                    L_channel_tokens,
+                    dim=0
+                ).unsqueeze(0)
+
+                
+
+                tokens_list.append(tokens)
+                #token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+
+     
+        tokens = torch.cat(tokens_list, dim=0)
+        
+        tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
+       
+        tokens=tokens[token_masks==1,:]
+    
+   
+        return tokens
+    
+    def apply_transformations_sen1(self,im_sen,dates_sen,mask_sen):
+        im_sen = im_sen.unsqueeze(dim=0) # 1;20;4;4;6
+        img_size=im_sen.shape[2]
+
+        tokens_list = []
+        token_masks=einops.rearrange(mask_sen[:,:,:,:-1],"t h w c -> (t h w c)")
+
+        
+        
+
+        for t in range(im_sen.shape[1]):       
+            time_encoding=self.time_processing(dates_sen[t],img_size)
+
+            for index_channel in range(len(self.bands_sen1_infos.keys())):
+
+                if index_channel==2:
+                    continue
+
+
+                L_channel_tokens=[]
+                channel_id = self.get_band_identifier(self.bands_sen1_infos,index_channel)
+                infos = self.get_band_infos(self.bands_sen1_infos,channel_id)
+
+                #time_processing=self.time_processing(date_sen,img_size)
+                #wavelength encoding
+                shape_input_wavelength=self.get_shape_attributes_config("wavelength")
+                central_wavelength_processing=torch.empty((shape_input_wavelength,img_size,img_size))
+                L_channel_tokens.append(central_wavelength_processing)
+
+            
+                # Extract the channel and process it
+                img_channel = im_sen[:,t,:,:, index_channel]  # shape: (1, H, W)
+                value_processed=self.get_bvalue_processing(img_channel)
+                L_channel_tokens.append(value_processed)
+        
+                #positional encoding
+                resolution_value=float(1000)
+                band_post_proc = self.get_positional_processing(img_channel,resolution_value )
+                L_channel_tokens.append(band_post_proc)
+            
+                
+
+                if self.config["Atomiser"]["day_encoding"]=="FF":
+                    L_channel_tokens.append(time_encoding)
+
+
+                
+                #if not bool_verif:
+                #    token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+
+                # Concatenate all components for this channel in one go
+                tokens = torch.cat(
+                    L_channel_tokens,
+                    dim=0
+                ).unsqueeze(0)
+
+                tokens_list.append(tokens)
+                #token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+
+     
+        tokens = torch.cat(tokens_list, dim=0)
+        tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
+        tokens=tokens[token_masks==1,:]
+    
+   
+        return tokens
+    
+
+    def apply_transformations_alos(self,im_sen,dates_sen,mask_sen):
+        im_sen = im_sen.unsqueeze(dim=0) # 1;20;4;4;6
+        img_size=im_sen.shape[2]
+
+        tokens_list = []
+    
+        token_masks=einops.rearrange(mask_sen[:,:,:,:-1],"t h w c -> (t h w c)")
+
+        
+        
+
+        for t in range(im_sen.shape[1]):       
+            time_encoding=self.time_processing(dates_sen[t],img_size)
+
+            for index_channel in range(len(self.bands_alos_infos.keys())):
+
+                if index_channel==2:
+                    continue
+
+
+                L_channel_tokens=[]
+                channel_id = self.get_band_identifier(self.bands_alos_infos,index_channel)
+                infos = self.get_band_infos(self.bands_alos_infos,channel_id)
+
+                #time_processing=self.time_processing(date_sen,img_size)
+                #wavelength encoding
+                shape_input_wavelength=self.get_shape_attributes_config("wavelength")
+                central_wavelength_processing=torch.empty((shape_input_wavelength,img_size,img_size))
+                L_channel_tokens.append(central_wavelength_processing)
+
+            
+                # Extract the channel and process it
+                img_channel = im_sen[:,t,:,:, index_channel]  # shape: (1, H, W)
+                value_processed=self.get_bvalue_processing(img_channel)
+                L_channel_tokens.append(value_processed)
+        
+                #positional encoding
+                resolution_value=float(1000)
+                band_post_proc = self.get_positional_processing(img_channel,resolution_value )
+                L_channel_tokens.append(band_post_proc)
+            
+                
+
+                if self.config["Atomiser"]["day_encoding"]=="FF":
+                    L_channel_tokens.append(time_encoding)
+
+
+                
+                #if not bool_verif:
+                #    token_masks[token_masks_id:token_masks_id+img_size*img_size:]=index_channel
+
+                # Concatenate all components for this channel in one go
+                tokens = torch.cat(
+                    L_channel_tokens,
+                    dim=0
+                ).unsqueeze(0)
+
+                tokens_list.append(tokens)
+                #token_masks_id+=im_sen.shape[1]*im_sen.shape[2]*im_sen.shape[3]
+
+     
+        tokens = torch.cat(tokens_list, dim=0)
+        tokens = einops.rearrange(tokens, "b c h w -> (b h w) c")
+        tokens=tokens[token_masks==1,:]
+    
+   
+        return tokens
     
 
     
@@ -447,4 +702,4 @@ class transformations_config_flair:
 
 
         
-        return tokens,tokens_masks,attention_mask
+        return tokens,tokens_masks,attention_mask.astype(int)

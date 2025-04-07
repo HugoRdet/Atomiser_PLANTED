@@ -16,10 +16,6 @@ import einops as einops
 from einops import rearrange, repeat
 from einops.layers.torch import Reduce
 import matplotlib.pyplot as plt
-from configilm import util
-util.MESSAGE_LEVEL = util.MessageLevel.INFO
-from configilm.extra.DataSets import BENv2_DataSet
-from configilm.extra.DataModules import BENv2_DataModule
 import random
 import torchmetrics
 import warnings

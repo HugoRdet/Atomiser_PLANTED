@@ -101,8 +101,7 @@ class Atomiser(nn.Module):
         shape_input_dim_x = self.get_shape_attributes_config("pos")
         shape_input_dim_y = self.get_shape_attributes_config("pos")
 
-        query_num_freq_bands = config["Atomiser"]["query_num_freq_bands"]
-        query_max_freq = config["Atomiser"]["query_max_freq"]
+      
 
         
         shape_input_year = self.get_shape_attributes_config("year")
@@ -120,17 +119,10 @@ class Atomiser(nn.Module):
         
         
         # Initialize your parameter
-        self.encode_bands_no_wavelength = nn.Parameter(torch.empty(shape_input_wavelength))
-
+        self.sen_1 = nn.Parameter(torch.empty(shape_input_wavelength))
+        nn.init.trunc_normal_(self.self.sen_1, mean=0.0, std=0.02, a=-2.0, b=2.0)
+        
         # Apply truncated normal initialization with specified parameters
-        nn.init.trunc_normal_(self.encode_bands_no_wavelength, mean=0.0, std=0.02, a=-2.0, b=2.0)
-        queries_tensor=get_positional_processing(512, None, query_max_freq, query_num_freq_bands)
-        plt.figure()
-        plt.imshow(queries_tensor[:100])
-
-  
-
-        self.register_buffer("queries", queries_tensor)
 
 
 
@@ -178,13 +170,11 @@ class Atomiser(nn.Module):
 
      
 
-        queries_dim=self.get_shape_attributes_config("query")*2
-        self.decoder_cross_attn = PreNorm(queries_dim, Attention(queries_dim, latent_dim, heads = cross_heads, dim_head = cross_dim_head), context_dim = latent_dim)
-        self.decoder_ff = PreNorm(queries_dim, FeedForward(queries_dim))
-        
-        self.tmp_Relu=nn.ReLU()
-        self.to_logits=nn.Linear(queries_dim, 256)
-        self.to_logits_1=nn.Linear(256, self.nb_classes)
+        self.to_logits = nn.Sequential(
+            Reduce('b n d -> b d', 'mean'),
+            nn.LayerNorm(latent_dim),
+            nn.Linear(latent_dim, num_classes)
+        ) if final_classifier_head else nn.Identity()
 
        
 
@@ -209,7 +199,7 @@ class Atomiser(nn.Module):
 
 
 
-    def forward(self,data,tokens_mask = None,attention_mask=None,return_embeddings = False):
+    def forward(self,data,tokens_mask = None,attention_mask=None,return_embeddings = False,training=False):
         
         b, *axis, _, device, dtype = *data.shape, data.device, data.dtype
 
@@ -219,23 +209,37 @@ class Atomiser(nn.Module):
         x = repeat(self.latents, 'n d -> b n d', b = b)
 
         
-        #for idx_channel in range(data.shape[0]):
-        #    data[idx_channel,tokens_mask[idx_channel]==1,self.coordinates_start_wl:self.coordinates_end_wl]=self.encode_bands_no_wavelength
+        # layers
         
-     
+        for cross_attn, cross_ff, self_attns in self.layers:
 
-
-        queries=self.queries.clone()
-        
-        queries=repeat(queries,"l f -> b l f",b=data.shape[0])
-        
-        #latents = self.decoder_cross_attn(queries, context = x)
-        latents =self.decoder_ff(queries)
-        
+            masked_data=data.clone()
+            
     
-        logits=self.to_logits(latents).relu()
-        logits=self.to_logits_1(logits)
-        logits=rearrange(logits,"b (h w) l-> b l h w ",h=512,w=512)
+            if training and self.masking>0:
+                masked_data=masking(masked_data,self.masking)
+
+            x = cross_attn(x, context = masked_data, mask = mask) + x
+            x = cross_ff(x) + x
+
+            for self_attn, self_ff in self_attns:
+                x = self_attn(x) + x
+                x = self_ff(x) + x
+
+        for self_attn, self_ff in self.lattent_attn_layers:
+            x = self_attn(x) + x
+            x = self_ff(x) + x
+
+            
+
+        # allow for fetching embeddings
+
+        if return_embeddings:
+            return x
+
+        # to logits
+
+        return self.to_logits(x)
 
 
         return logits

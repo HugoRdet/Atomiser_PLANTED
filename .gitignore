@@ -9,11 +9,13 @@ training/wandb_runs/*
 lightning_logs/
 # C extensions
 *.so
+*.tar.gz
 *_transfos.yaml
 *.pth
 *.ckpt
 *.tif
 *.npy
+*.npz
 *.txt
 *.zip
 #data
