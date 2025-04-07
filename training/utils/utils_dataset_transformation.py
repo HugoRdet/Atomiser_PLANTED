@@ -239,7 +239,7 @@ class transformations_config_flair:
     
 
     def time_processing(self,time_stamp,img_size):
-        dt = time_stamp.astype('datetime64[s]')
+        dt = time_stamp.numpy().astype('datetime64[s]')
 
         years = dt.astype('datetime64[Y]').astype(int) + 1970
         norm_year = (years - 1999) / 27.0
@@ -282,7 +282,7 @@ class transformations_config_flair:
         elif mode=="modis":
             tmp_infos=self.bands_modis_infos
 
-        if len(im_sen.shape[0])==4:
+        if len(im_sen.shape)==4:
             im_sen = im_sen.unsqueeze(dim=0).unsqueeze(dim=0) # 1;1;8;12;12;3
             token_masks=mask_sen.unsqueeze(dim=0).unsqueeze(dim=0)# 1;1;8;12;12;3
         else:
@@ -298,7 +298,7 @@ class transformations_config_flair:
         
 
         #aerial images handling
-        for t in range(im_sen.shape[1]):
+        for t in range(im_sen.shape[2]):
 
             
             time_encoding=self.time_processing(dates_sen,img_size)

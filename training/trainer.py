@@ -25,12 +25,12 @@ import wandb
 warnings.filterwarnings("ignore", message="No positive samples found in target, recall is undefined. Setting recall to one for all thresholds.")
 
 class Model(pl.LightningModule):
-    def __init__(self, config,labels, wand, name,img_shape=None):
+    def __init__(self, config,labels, wand, name,transform=None):
         super().__init__()
         self.config = config
         self.labels=labels
         self.wand = wand
-        self.img_shape=img_shape
+        self.transform=transform
         self.num_classes = config["trainer"]["num_classes"]
         self.logging_step = config["trainer"]["logging_step"]
         self.actual_epoch = 0
@@ -163,32 +163,50 @@ class Model(pl.LightningModule):
         self.metric_F1_train_freq.reset()
         self.metric_F1_train_com.reset()
         self.metric_F1_train_rare.reset()
+
+    
+    def get_tokens(self,modality,mode="optique"):
+        (imgs,time_stamps,mask)=modality
+        print(imgs.shape,"  ",time_stamps.shape,"  ",mask.shape)
+
+        self.transform.apply_transformations_optique(imgs,time_stamps,mask,"s2")
+
+
+    def process_modalities(self,data):
+        (s2,l7,modis,s1,alos)=data
+
+        self.get_tokens(s2)
+
+
         
     def validation_step(self, batch, batch_idx):
-        tokens,token_masks_w,labels,frequency = batch
+        data,labels,frequency = batch
+
+        self.process_modalities(data)
+
         
 
-        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
+        #y_hat = self.forward(tokens,tokens_masks=token_masks_w)
         
-        labels=labels.to(torch.long)
-        loss = self.loss(y_hat, labels)
+        #labels=labels.to(torch.long)
+        #loss = self.loss(y_hat, labels)
 
-        y_hat=torch.argmax(y_hat,dim=1)
+        #y_hat=torch.argmax(y_hat,dim=1)
         
 
-        self.metric_Acc_validation.update(y_hat,labels)
-        self.metric_F1_validation.update(y_hat,labels)
-        if y_hat[frequency==0].shape[0]!=0:
-            self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
-        if y_hat[frequency==1].shape[0]!=0:
-            self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
-        if y_hat[frequency==2].shape[0]!=0:
-            self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
+        #self.metric_Acc_validation.update(y_hat,labels)
+        #self.metric_F1_validation.update(y_hat,labels)
+        #if y_hat[frequency==0].shape[0]!=0:
+        #    self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
+        #if y_hat[frequency==1].shape[0]!=0:
+        #    self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
+        #if y_hat[frequency==2].shape[0]!=0:
+        #    self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
+        #self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
 
-        return loss        
+        #return loss        
 
     def on_validation_epoch_end(self):
         

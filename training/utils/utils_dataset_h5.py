@@ -331,7 +331,7 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             alos_mask = data["alos_mask"][:num_samples_file].astype(np.uint8)
 
             # Process timestamps (dividing by 1000 and converting)
-            s1_timestamps = (data["s1_timestamps"][:num_samples_file] z).astype(np.uint32)
+            s1_timestamps = (data["s1_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             s2_timestamps = (data["s2_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             l7_timestamps = (data["l7_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             modis_timestamps = (data["modis_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
