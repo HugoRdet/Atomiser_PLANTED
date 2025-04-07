@@ -331,7 +331,7 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             alos_mask = data["alos_mask"][:num_samples_file].astype(np.uint8)
 
             # Process timestamps (dividing by 1000 and converting)
-            s1_timestamps = (data["s1_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
+            s1_timestamps = (data["s1_timestamps"][:num_samples_file] z).astype(np.uint32)
             s2_timestamps = (data["s2_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             l7_timestamps = (data["l7_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
             modis_timestamps = (data["modis_timestamps"][:num_samples_file] / 1000).astype(np.uint32)
@@ -394,7 +394,7 @@ import h5py
 import random
 from torchvision.transforms.functional import rotate, hflip, vflip
 
-class CustomPlanted(Dataset):
+class CustomPlanted_prec(Dataset):
     def __init__(self, file_path, config=None, trans_config=None, augment=True):
         self.file_path = file_path
         self.config = config
@@ -424,7 +424,7 @@ class CustomPlanted(Dataset):
                 s2 = torch.tensor(f["s2"][idx], dtype=torch.float32)        # [8,12,12,10]
                 s2_dates = f["s2_timestamps"][idx]  # Just example — you can build years/months/days here if needed
                 s2_mask = torch.tensor(f["s2_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
-                tokens_s2=self.trans_config.apply_transformations_sen2(s2,s2_dates,s2_mask)
+                tokens_s2=self.trans_config.apply_transformations_optique(s2,s2_dates,s2_mask,"s2")
                 token_masks_wavelength.append(torch.ones(tokens_s2.shape[0]))
                 tokens_list.append(tokens_s2)
 
@@ -432,7 +432,7 @@ class CustomPlanted(Dataset):
                 l7 = torch.tensor(f["l7"][idx], dtype=torch.float32)        # [20,4,4,6]
                 l7_dates = f["l7_timestamps"][idx]  # Just example — you can build years/months/days here if needed
                 l7_mask = torch.tensor(f["l7_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
-                tokens_l7=self.trans_config.apply_transformations_l7(l7,l7_dates,l7_mask)
+                tokens_l7=self.trans_config.apply_transformations_optique(l7,l7_dates,l7_mask,"l7")
                 token_masks_wavelength.append(torch.ones(tokens_l7.shape[0]))
                 tokens_list.append(tokens_l7)
 
@@ -440,7 +440,7 @@ class CustomPlanted(Dataset):
                 modis = torch.tensor(f["modis"][idx], dtype=torch.float32)        # [20,4,4,6]
                 modis_dates = f["modis_timestamps"][idx]  # Just example — you can build years/months/days here if needed
                 modis_mask = torch.tensor(f["modis_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
-                tokens_modis=self.trans_config.apply_transformations_modis(modis,modis_dates,modis_mask)
+                tokens_modis=self.trans_config.apply_transformations_optique(modis,modis_dates,modis_mask,"modis")
                 token_masks_wavelength.append(torch.ones(tokens_modis.shape[0]))
                 tokens_list.append(tokens_modis)
 
@@ -448,7 +448,7 @@ class CustomPlanted(Dataset):
                 s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [20,4,4,6]
                 s1_dates = f["s1_timestamps"][idx]  # Just example — you can build years/months/days here if needed
                 s1_mask = torch.tensor(f["s1_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
-                tokens_s1=self.trans_config.apply_transformations_sen1(s1,s1_dates,s1_mask)
+                tokens_s1=self.trans_config.apply_transformations_SAR(s1,s1_dates,s1_mask,"s1")
                 token_masks_wavelength.append(torch.ones(tokens_s1.shape[0])*2)
                 tokens_list.append(tokens_s1)
 
@@ -456,7 +456,7 @@ class CustomPlanted(Dataset):
                 alos = torch.tensor(f["alos"][idx], dtype=torch.float32)        # [20,4,4,6]
                 alos_dates = f["alos_timestamps"][idx]  # Just example — you can build years/months/days here if needed
                 alos_mask = torch.tensor(f["alos_mask"][idx], dtype=torch.float32)  # e.g., first timestep, shape [12,12]
-                tokens_alos=self.trans_config.apply_transformations_alos(alos,alos_dates,alos_mask)
+                tokens_alos=self.trans_config.apply_transformations_SAR(alos,alos_dates,alos_mask,"alos")
                 token_masks_wavelength.append(torch.ones(tokens_alos.shape[0])*3)
                 tokens_list.append(tokens_alos)
 
@@ -477,6 +477,57 @@ class CustomPlanted(Dataset):
   
 
         return tokens,token_masks_w,label,frequency
+    
+
+class CustomPlanted(Dataset):
+    def __init__(self, file_path, config=None, trans_config=None, augment=True):
+        self.file_path = file_path
+        self.config = config
+        self.trans_config = trans_config
+        self.augment = augment
+        self.max_tokens=self.config["trainer"]["max_tokens"]
+
+        with h5py.File(self.file_path, 'r') as f:
+            self.num_samples = f["s1"].shape[0]  # all modalities have the same first dimension
+
+    def __len__(self):
+        return self.num_samples
+    
+
+    def get_modality(self,f,modality,idx):
+        imgs=torch.tensor(f[modality][idx], dtype=torch.float32)
+        time_stamps=f[f"{modality}_timestamps"][idx]
+        mask=torch.tensor(f[f"{modality}_mask"][idx], dtype=torch.float32)
+
+        return (imgs,time_stamps,mask)
+
+
+    def __getitem__(self, idx):
+        with h5py.File(self.file_path, 'r') as f:
+            # Load modalities (you can combine or subset these as needed)
+            #s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [8,12,12,3]
+
+
+            label= f["label"][idx]
+            frequency=f["frequencies"][idx]
+
+            tokens_list=[]
+            token_masks_wavelength=[]
+            
+            s2=self.get_modality(f,"s2",idx)
+            l7=self.get_modality(f,"l7",idx)
+            modis=self.get_modality(f,"modis",idx)
+            s1=self.get_modality(f,"s1",idx)
+            alos=self.get_modality(f,"alos",idx)
+
+            
+
+
+         
+
+  
+
+        return (s2,l7,modis,s1,alos),label,frequency
 
 
 
@@ -531,7 +582,8 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         print(f"Train DataLoader created on rank: {rank}")
         return DataLoader(
             self.train_dataset,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            batch_size=self.batch_size
         )
 
     def val_dataloader(self):
@@ -539,7 +591,8 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         print(f"Validation DataLoader created on rank: {rank}")
         return DataLoader(
             self.val_dataset,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            batch_size=self.batch_size
         )
 
     def test_dataloader(self):
@@ -548,5 +601,6 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         print(f"Test DataLoader created on rank: {rank}")
         return DataLoader(
             self.test_dataset,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            batch_size=self.batch_size
         )
