@@ -60,13 +60,13 @@ bands_yaml = "./data/bands_info/bands.yaml"
 
 trans_config = transformations_config_flair(bands_yaml, config_model)
 
-wand = False
+wand = True
 wandb_logger = None
 if wand:
     if os.environ.get("LOCAL_RANK", "0") == "0":
         import wandb
         wandb.init(
-            name=get_xp_name(config_model['encoder']) + " modalities",
+            name=config_model['encoder'],
             project="PLANTED",
             config=config_model
         )
@@ -85,15 +85,15 @@ data_module = CustomPlantedDataModule(
 # Callbacks
 checkpoint_callback = ModelCheckpoint(
     dirpath="./checkpoints/",
-    filename="best_model-{epoch:02d}-{val_IoU:.4f}",
-    monitor="val_IoU",
+    filename="best_model-{epoch:02d}-{val_F1:.4f}",
+    monitor="val_F1",
     mode="max",
     save_top_k=1,
     verbose=True,
 )
 
 early_stop_callback = EarlyStopping(
-    monitor="val_IoU",
+    monitor="val_F1",
     min_delta=0.00,
     patience=15,
     verbose=False,
@@ -126,12 +126,14 @@ trainer.fit(model, datamodule=data_module)
 
 # ... after training completes, within your "if wand" block:
 if wand and os.environ.get("LOCAL_RANK", "0") == "0":
+    print("ici")
     run_id = wandb.run.id
     print("WANDB_RUN_ID:", run_id)
     
     # Create the directory for storing wandb run IDs if it doesn't exist
     runs_dir = "training/wandb_runs"
     os.makedirs(runs_dir, exist_ok=True)
+    
     
     # Save the run ID to a file inside wandb_runs
     run_file = os.path.join(runs_dir, xp_name+".txt")

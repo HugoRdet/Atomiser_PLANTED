@@ -88,7 +88,24 @@ if wand:
 
 
 checkpoint_dir = "./checkpoints"
-checkpoint_path = sorted([os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if xp_name in f])[-1]
+all_ckpt_files = [
+    os.path.join(checkpoint_dir, f) 
+    for f in os.listdir(checkpoint_dir) 
+    if f.endswith(".ckpt")
+]
+
+# Try to filter files by xp_name if any checkpoint includes it.
+checkpoint_files = [f for f in all_ckpt_files if xp_name in os.path.basename(f)]
+
+# If no file contains xp_name, fallback to using all checkpoint files.
+if not checkpoint_files:
+    checkpoint_files = all_ckpt_files
+
+if not checkpoint_files:
+    raise FileNotFoundError(f"No checkpoint found in {checkpoint_dir}.")
+
+# Sort the selected checkpoint files by modification time and choose the most recent one.
+checkpoint_path = sorted(checkpoint_files, key=os.path.getmtime)[-1]
 print(f"Loading best checkpoint: {checkpoint_path}")
 
 model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
