@@ -226,6 +226,8 @@ class Atomiser(nn.Module):
 
         tokens_masks=tokens_masks.to(bool)
 
+        data[tokens_masks==0]=0
+
 
         
         # layers

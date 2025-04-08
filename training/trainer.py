@@ -98,6 +98,7 @@ class Model(pl.LightningModule):
 
         self.loss = nn.CrossEntropyLoss()
         self.lr = float(config["trainer"]["lr"])
+        self.max_tokens=self.config["trainer"]["max_tokens"]
         
     def forward(self, tokens,tokens_masks,training=False):
         model_output=self.encoder(tokens,tokens_masks,training=training)
@@ -130,7 +131,7 @@ class Model(pl.LightningModule):
             self.metric_F1_train_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        self.log("train_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, logger=True, sync_dist=False)
 
         return loss 
 
@@ -199,6 +200,9 @@ class Model(pl.LightningModule):
                                tokens_mask_mo,
                                tokens_mask_s1,
                                tokens_mask_al],dim=1)
+
+
+            
         return tokens,tokens_mask,labels,frequency
     
     def validation_step(self, batch, batch_idx):
@@ -222,7 +226,7 @@ class Model(pl.LightningModule):
             self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, logger=True, sync_dist=False)
 
         return loss
 
