@@ -497,6 +497,9 @@ class CustomPlanted(Dataset):
     def get_modality(self,f,modality,idx):
         imgs=torch.tensor(f[modality][idx], dtype=torch.float32)
         time_stamps=f[f"{modality}_timestamps"][idx]
+    
+        time_stamps=self.trans_config.time_processing(time_stamps)
+   
         mask=torch.tensor(f[f"{modality}_mask"][idx], dtype=torch.float32)
 
         return (imgs,time_stamps,mask)
@@ -514,11 +517,11 @@ class CustomPlanted(Dataset):
             tokens_list=[]
             token_masks_wavelength=[]
             
-            s2=self.get_modality(f,"s2",idx)
-            l7=self.get_modality(f,"l7",idx)
-            modis=self.get_modality(f,"modis",idx)
-            s1=self.get_modality(f,"s1",idx)
-            alos=self.get_modality(f,"alos",idx)
+            img_s2,date_s2,mask_s2=self.get_modality(f,"s2",idx)
+            img_l7,date_l7,mask_l7=self.get_modality(f,"l7",idx)
+            img_mo,date_mo,mask_mo=self.get_modality(f,"modis",idx)
+            img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
+            img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
 
             
 
@@ -527,7 +530,7 @@ class CustomPlanted(Dataset):
 
   
 
-        return (s2,l7,modis,s1,alos),label,frequency
+        return img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al,label,frequency
 
 
 

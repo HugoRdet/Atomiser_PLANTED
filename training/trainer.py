@@ -109,10 +109,10 @@ class Model(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        tokens,token_masks_w,labels,frequency = batch
+        tokens,tokens_mask,labels,frequency=self.process_data(batch)
         
 
-        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
+        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=True)
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
@@ -165,48 +165,66 @@ class Model(pl.LightningModule):
         self.metric_F1_train_rare.reset()
 
     
-    def get_tokens(self,modality,mode="optique"):
-        (imgs,time_stamps,mask)=modality
-        print(imgs.shape,"  ",time_stamps.shape,"  ",mask.shape)
-
-        self.transform.apply_transformations_optique(imgs,time_stamps,mask,"s2")
-
-
-    def process_modalities(self,data):
-        (s2,l7,modis,s1,alos)=data
-
-        self.get_tokens(s2)
-
-
+    def get_tokens(self,img,date,mask,mode="optique",modality="s2"):
         
+  
+
+        if mode=="optique":
+            return self.transform.apply_transformations_optique(img,date,mask,modality)
+        if mode=="sar":
+            return self.transform.apply_transformations_SAR(img,date,mask,modality)
+
+
+
+ 
+
+
+    def process_data(self,batch):
+        img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al,labels,frequency = batch
+        tokens_s2,tokens_mask_s2=self.get_tokens(img_s2,date_s2,mask_s2,mode="optique",modality="s2")
+        tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
+        tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
+        tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
+        tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
+
+
+        tokens=torch.cat([tokens_s2,
+                          tokens_l7,
+                          tokens_mo,
+                          tokens_s1,
+                          tokens_al],dim=1)
+        
+        tokens_mask=torch.cat([tokens_mask_s2,
+                               tokens_mask_l7,
+                               tokens_mask_mo,
+                               tokens_mask_s1,
+                               tokens_mask_al],dim=1)
+        return tokens,tokens_mask,labels,frequency
+    
     def validation_step(self, batch, batch_idx):
-        data,labels,frequency = batch
+        tokens,tokens_mask,labels,frequency=self.process_data(batch)
+        
+        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
+        
+        labels=labels.to(torch.long)
+        loss = self.loss(y_hat, labels)
 
-        self.process_modalities(data)
-
+        y_hat=torch.argmax(y_hat,dim=1)
         
 
-        #y_hat = self.forward(tokens,tokens_masks=token_masks_w)
-        
-        #labels=labels.to(torch.long)
-        #loss = self.loss(y_hat, labels)
-
-        #y_hat=torch.argmax(y_hat,dim=1)
-        
-
-        #self.metric_Acc_validation.update(y_hat,labels)
-        #self.metric_F1_validation.update(y_hat,labels)
-        #if y_hat[frequency==0].shape[0]!=0:
-        #    self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
-        #if y_hat[frequency==1].shape[0]!=0:
-        #    self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
-        #if y_hat[frequency==2].shape[0]!=0:
-        #    self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
+        self.metric_Acc_validation.update(y_hat,labels)
+        self.metric_F1_validation.update(y_hat,labels)
+        if y_hat[frequency==0].shape[0]!=0:
+            self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
+        if y_hat[frequency==1].shape[0]!=0:
+            self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
+        if y_hat[frequency==2].shape[0]!=0:
+            self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        #self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, logger=False, sync_dist=False)
 
-        #return loss        
+        return loss
 
     def on_validation_epoch_end(self):
         
@@ -245,10 +263,10 @@ class Model(pl.LightningModule):
         super().on_test_epoch_start()
         
     def test_step(self, batch, batch_idx):
-        tokens,token_masks_w,labels,frequency = batch
+        tokens,tokens_mask,labels,frequency=self.process_data(batch)
         
 
-        y_hat = self.forward(tokens,tokens_masks=token_masks_w)
+        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
         
         labels=labels.to(torch.long)
         

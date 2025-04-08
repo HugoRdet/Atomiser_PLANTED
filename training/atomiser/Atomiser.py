@@ -233,12 +233,14 @@ class Atomiser(nn.Module):
         for cross_attn, cross_ff, self_attns in self.layers:
 
             masked_data=data.clone()
+            masked_attention_mask=tokens_masks.clone()
             
     
             if training and self.masking>0:
-                masked_data=masking(masked_data,self.masking)
+                masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
 
-            x = cross_attn(x, context = masked_data, mask = tokens_masks ) + x
+            
+            x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
             x = cross_ff(x) + x
 
             for self_attn, self_ff in self_attns:
