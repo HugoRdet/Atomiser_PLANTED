@@ -72,7 +72,7 @@ if wand:
         )
         wandb_logger = WandbLogger(project="PLANTED")
 
-model = Model(config_model, wand=wand, name=xp_name, labels=labels)
+model = Model(config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
 
 data_module = CustomPlantedDataModule(
     "./data/custom_planted/"+config_name_dataset,

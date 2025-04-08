@@ -91,7 +91,7 @@ checkpoint_dir = "./checkpoints"
 checkpoint_path = sorted([os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if xp_name in f])[-1]
 print(f"Loading best checkpoint: {checkpoint_path}")
 
-model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels)
+model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
 
 
 data_module = CustomPlantedDataModule(
