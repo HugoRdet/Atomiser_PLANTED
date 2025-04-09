@@ -136,7 +136,8 @@ class Model(pl.LightningModule):
             self.metric_F1_train_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=False)
+        self.log("train_loss", loss, on_step=True, on_epoch=False, logger=True, sync_dist=False)
+        self.log("log train_loss", torch.log(loss), on_step=True, on_epoch=False, logger=True, sync_dist=False)
 
         
 
@@ -157,8 +158,8 @@ class Model(pl.LightningModule):
         F1_com=self.metric_F1_train_com.compute()
         F1_rare=self.metric_F1_train_rare.compute()
         
-        self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("log train_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        #self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        
 
         self.log("train_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
         self.log("train_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
