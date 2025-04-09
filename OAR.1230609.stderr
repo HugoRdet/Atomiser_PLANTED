@@ -1,0 +1,271 @@
+Seed set to 42
+Seed set to 42
+wandb: Currently logged in as: hugordet (hugordet-inria). Use `wandb login --relogin` to force relogin
+ERROR:root:Driver not initialized (amdgpu not found in modules)
+wandb: wandb version 0.19.9 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.15.12
+wandb: Run data is saved locally in /home/hriffaud/PLANTED/wandb/run-20250409_100754-rbm7351x
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run Atomiser
+wandb: ⭐️ View project at https://wandb.ai/hugordet-inria/PLANTED
+wandb: 🚀 View run at https://wandb.ai/hugordet-inria/PLANTED/runs/rbm7351x
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/2
+[rank: 1] Seed set to 42
+[rank: 1] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/2
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 2 processes
+----------------------------------------------------------------------------------------------------
+
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loggers/wandb.py:397: There is a wandb run already in progress and newly created instances of `WandbLogger` will reuse this run. If this is not desired, call `wandb.finish()` before instantiating `WandbLogger`.
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/callbacks/model_checkpoint.py:654: Checkpoint directory /home/hriffaud/PLANTED/checkpoints exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1]
+
+   | Name                      | Type                      | Params | Mode 
+---------------------------------------------------------------------------------
+0  | metric_Acc_train          | MulticlassAccuracy        | 0      | train
+1  | metric_Acc_validation     | MulticlassAccuracy        | 0      | train
+2  | metric_Acc_test           | MulticlassAccuracy        | 0      | train
+3  | metric_F1_train           | MulticlassF1Score         | 0      | train
+4  | metric_F1_validation      | MulticlassF1Score         | 0      | train
+5  | metric_F1_test            | MulticlassF1Score         | 0      | train
+6  | metric_F1_train_freq      | MulticlassF1Score         | 0      | train
+7  | metric_F1_validation_freq | MulticlassF1Score         | 0      | train
+8  | metric_F1_test_freq       | MulticlassF1Score         | 0      | train
+9  | metric_F1_train_com       | MulticlassF1Score         | 0      | train
+10 | metric_F1_validation_com  | MulticlassF1Score         | 0      | train
+11 | metric_F1_test_com        | MulticlassF1Score         | 0      | train
+12 | metric_F1_train_rare      | MulticlassF1Score         | 0      | train
+13 | metric_F1_validation_rare | MulticlassF1Score         | 0      | train
+14 | metric_F1_test_rare       | MulticlassF1Score         | 0      | train
+15 | metric_IoU_val            | MulticlassJaccardIndex    | 0      | train
+16 | metric_IoU_test           | MulticlassJaccardIndex    | 0      | train
+17 | confmat_test              | MulticlassConfusionMatrix | 0      | train
+18 | encoder                   | Atomiser                  | 15.1 M | train
+19 | loss                      | CrossEntropyLoss          | 0      | train
+---------------------------------------------------------------------------------
+15.1 M    Trainable params
+0         Non-trainable params
+15.1 M    Total params
+60.577    Total estimated model params size (MB)
+112       Modules in train mode
+0         Modules in eval mode
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/connectors/logger_connector/result.py:434: It is recommended to use `self.log('val_loss', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: The ``compute`` method of metric MulticlassJaccardIndex was called before the ``update`` method which may lead to errors, as metric states have not yet been updated.
+  warnings.warn(*args, **kwargs)  # noqa: B028
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: The ``compute`` method of metric MulticlassF1Score was called before the ``update`` method which may lead to errors, as metric states have not yet been updated.
+  warnings.warn(*args, **kwargs)  # noqa: B028
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/connectors/logger_connector/result.py:434: It is recommended to use `self.log('train_loss', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: The ``compute`` method of metric MulticlassAccuracy was called before the ``update`` method which may lead to errors, as metric states have not yet been updated.
+  warnings.warn(*args, **kwargs)  # noqa: B028
+Epoch 0, global step 2273: 'val_F1' reached 0.76024 (best 0.76024), saving model to '/home/hriffaud/PLANTED/checkpoints/best_model-epoch=00-val_F1=0.7602.ckpt' as top 1
+Epoch 1, global step 4546: 'val_F1' reached 0.79468 (best 0.79468), saving model to '/home/hriffaud/PLANTED/checkpoints/best_model-epoch=01-val_F1=0.7947.ckpt' as top 1
+Epoch 2, global step 6819: 'val_F1' reached 0.80402 (best 0.80402), saving model to '/home/hriffaud/PLANTED/checkpoints/best_model-epoch=02-val_F1=0.8040.ckpt' as top 1
+Epoch 3, global step 9092: 'val_F1' reached 0.81085 (best 0.81085), saving model to '/home/hriffaud/PLANTED/checkpoints/best_model-epoch=03-val_F1=0.8109.ckpt' as top 1
+Epoch 4, global step 11365: 'val_F1' reached 0.82922 (best 0.82922), saving model to '/home/hriffaud/PLANTED/checkpoints/best_model-epoch=04-val_F1=0.8292.ckpt' as top 1
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/home/hriffaud/PLANTED/script_train.py", line 120, in <module>
+[rank1]:     trainer.fit(model, datamodule=data_module)
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 539, in fit
+[rank1]:     call._call_and_handle_interrupt(
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/call.py", line 46, in _call_and_handle_interrupt
+[rank1]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank1]:     return function(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 575, in _fit_impl
+[rank1]:     self._run(model, ckpt_path=ckpt_path)
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 982, in _run
+[rank1]:     results = self._run_stage()
+[rank1]:               ^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 1026, in _run_stage
+[rank1]:     self.fit_loop.run()
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fit_loop.py", line 216, in run
+[rank1]:     self.advance()
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fit_loop.py", line 455, in advance
+[rank1]:     self.epoch_loop.run(self._data_fetcher)
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 150, in run
+[rank1]:     self.advance(data_fetcher)
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 282, in advance
+[rank1]:     batch, _, __ = next(data_fetcher)
+[rank1]:                    ^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 134, in __next__
+[rank1]:     batch = super().__next__()
+[rank1]:             ^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 61, in __next__
+[rank1]:     batch = next(self.iterator)
+[rank1]:             ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 341, in __next__
+[rank1]:     out = next(self._iterator)
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 78, in __next__
+[rank1]:     out[i] = next(self.iterators[i])
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 708, in __next__
+[rank1]:     data = self._next_data()
+[rank1]:            ^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1480, in _next_data
+[rank1]:     return self._process_data(data)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1505, in _process_data
+[rank1]:     data.reraise()
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/_utils.py", line 733, in reraise
+[rank1]:     raise exception
+[rank1]: FileNotFoundError: Caught FileNotFoundError in DataLoader worker process 3.
+[rank1]: Original Traceback (most recent call last):
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 349, in _worker_loop
+[rank1]:     data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+[rank1]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+[rank1]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank1]:             ~~~~~~~~~~~~^^^^^
+[rank1]:   File "/home/hriffaud/PLANTED/training/utils/utils_dataset_h5.py", line 509, in __getitem__
+[rank1]:     return (imgs,time_stamps,mask)
+[rank1]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/h5py/_hl/files.py", line 564, in __init__
+[rank1]:     fid = make_fid(name, mode, userblock_size, fapl, fcpl, swmr=swmr)
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/h5py/_hl/files.py", line 238, in make_fid
+[rank1]:     fid = h5f.open(name, flags, fapl=fapl)
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+[rank1]:   File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+[rank1]:   File "h5py/h5f.pyx", line 102, in h5py.h5f.open
+[rank1]: FileNotFoundError: [Errno 2] Unable to synchronously open file (unable to open file: name = './data/custom_planted/tiny_train.h5', errno = 2, error message = 'No such file or directory', flags = 0, o_flags = 0)
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/home/hriffaud/PLANTED/script_train.py", line 120, in <module>
+[rank0]:     trainer.fit(model, datamodule=data_module)
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 539, in fit
+[rank0]:     call._call_and_handle_interrupt(
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/call.py", line 46, in _call_and_handle_interrupt
+[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank0]:     return function(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 575, in _fit_impl
+[rank0]:     self._run(model, ckpt_path=ckpt_path)
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 982, in _run
+[rank0]:     results = self._run_stage()
+[rank0]:               ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 1026, in _run_stage
+[rank0]:     self.fit_loop.run()
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fit_loop.py", line 216, in run
+[rank0]:     self.advance()
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fit_loop.py", line 455, in advance
+[rank0]:     self.epoch_loop.run(self._data_fetcher)
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 150, in run
+[rank0]:     self.advance(data_fetcher)
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 282, in advance
+[rank0]:     batch, _, __ = next(data_fetcher)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 134, in __next__
+[rank0]:     batch = super().__next__()
+[rank0]:             ^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 61, in __next__
+[rank0]:     batch = next(self.iterator)
+[rank0]:             ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 341, in __next__
+[rank0]:     out = next(self._iterator)
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 78, in __next__
+[rank0]:     out[i] = next(self.iterators[i])
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 708, in __next__
+[rank0]:     data = self._next_data()
+[rank0]:            ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1480, in _next_data
+[rank0]:     return self._process_data(data)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1505, in _process_data
+[rank0]:     data.reraise()
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/_utils.py", line 733, in reraise
+[rank0]:     raise exception
+[rank0]: FileNotFoundError: Caught FileNotFoundError in DataLoader worker process 3.
+[rank0]: Original Traceback (most recent call last):
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 349, in _worker_loop
+[rank0]:     data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+[rank0]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+[rank0]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank0]:             ~~~~~~~~~~~~^^^^^
+[rank0]:   File "/home/hriffaud/PLANTED/training/utils/utils_dataset_h5.py", line 509, in __getitem__
+[rank0]:     return (imgs,time_stamps,mask)
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/h5py/_hl/files.py", line 564, in __init__
+[rank0]:     fid = make_fid(name, mode, userblock_size, fapl, fcpl, swmr=swmr)
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/hriffaud/.conda/envs/venv/lib/python3.11/site-packages/h5py/_hl/files.py", line 238, in make_fid
+[rank0]:     fid = h5f.open(name, flags, fapl=fapl)
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+[rank0]:   File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+[rank0]:   File "h5py/h5f.pyx", line 102, in h5py.h5f.open
+[rank0]: FileNotFoundError: [Errno 2] Unable to synchronously open file (unable to open file: name = './data/custom_planted/tiny_train.h5', errno = 2, error message = 'No such file or directory', flags = 0, o_flags = 0)
+
+wandb: Waiting for W&B process to finish... (failed 1). Press Control-C to abort syncing.
+wandb: 
+wandb: Run history:
+wandb:               epoch ▁▁▁▁▁▁▁▁▂▂▂▂▂▂▂▄▄▄▄▄▄▄▄▅▅▅▅▅▅▅▅▇▇▇▇▇▇▇██
+wandb:      log train_loss █▃▂▂▁
+wandb:        log val_loss █▅▄▃▁
+wandb:           train_Acc ▁▁▁▁▁
+wandb:            train_F1 ▁▁▁▁▁
+wandb:        train_F1_com ▁▁▁▁▁
+wandb:       train_F1_freq ▁▁▁▁▁
+wandb:       train_F1_rare ▁▁▁▁▁
+wandb:          train_loss █▃▂▁▁
+wandb:    train_loss_epoch █▃▂▁▁
+wandb:     train_loss_step █▇▅▃▆▆▅▂▃▄▅▁▃▁▂▃▃▃▂▄▄▃▄▃▂▂▃▂▄▂▃▂▃▂▃▄▃▂▃▃
+wandb: trainer/global_step ▁▁▂▂▁▁▂▂▂▃▃▄▂▃▃▄▄▄▅▅▄▄▅▅▅▆▆▆▅▆▆▆▇▇█▆▇▇██
+wandb:             val_Acc ▁▄▅▆█
+wandb:              val_F1 ▁▄▅▆█
+wandb:          val_F1_com ▁▃▄▅█
+wandb:         val_F1_freq ▁▅▅▆█
+wandb:         val_F1_rare ▁▁▁▁▁
+wandb:            val_loss █▄▃▃▁
+wandb:      val_loss_epoch █▄▃▃▁
+wandb:       val_loss_step ▄▆▁▄▇█▇▆▄▄▆▃▄▁▃▄▄▅▄▅▄▅▃▃▄▄▅▃▂▅▃▅▃▃▄▄▆▃▃▅
+wandb: 
+wandb: Run summary:
+wandb:               epoch 5
+wandb:      log train_loss -0.66974
+wandb:        log val_loss -0.75508
+wandb:           train_Acc 0.0
+wandb:            train_F1 0.0
+wandb:        train_F1_com 0.0
+wandb:       train_F1_freq 0.0
+wandb:       train_F1_rare 0.0
+wandb:          train_loss 0.51184
+wandb:    train_loss_epoch 0.51184
+wandb:     train_loss_step 0.42164
+wandb: trainer/global_step 11767
+wandb:             val_Acc 0.82922
+wandb:              val_F1 0.82922
+wandb:          val_F1_com 0.1284
+wandb:         val_F1_freq 0.84877
+wandb:         val_F1_rare 0.0
+wandb:            val_loss 0.46997
+wandb:      val_loss_epoch 0.46997
+wandb:       val_loss_step 0.39232
+wandb: 
+wandb: 🚀 View run Atomiser at: https://wandb.ai/hugordet-inria/PLANTED/runs/rbm7351x
+wandb: ️⚡ View job at https://wandb.ai/hugordet-inria/PLANTED/jobs/QXJ0aWZhY3RDb2xsZWN0aW9uOjYwNzM0NTkxNQ==/version_details/v3
+wandb: Synced 6 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20250409_100754-rbm7351x/logs
+[rank: 1] Child process with PID 7656 terminated with code 1. Forcefully terminating all other processes to avoid zombies 🧟
+Killed
