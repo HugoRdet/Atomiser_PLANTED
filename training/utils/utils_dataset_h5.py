@@ -545,8 +545,8 @@ class CustomPlantedDataModule(pl.LightningDataModule):
     def __init__(self, path,config,trans_config, batch_size=8, num_workers=8):
         super().__init__()
         self.train_file = path + "_train.h5"
-        self.val_file = path + "_train.h5"
-        self.test_file = path + "_train.h5"
+        self.val_file = path + "_validation.h5"
+        self.test_file = path + "_test.h5"
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.trans_config = trans_config
