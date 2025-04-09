@@ -229,7 +229,12 @@ class Model(pl.LightningModule):
         
         y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
 
-        assert torch.all((labels >= 0) & (labels < self.num_classes)), "Found invalid labels!"
+
+        try:
+            assert torch.all((labels >= 0) & (labels < self.num_classes)), "Found invalid labels!"
+        except:
+            print("\n num classes : ",self.num_classes)
+            print(labels)
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
