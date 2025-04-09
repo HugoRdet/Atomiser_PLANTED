@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 */__MACOSX/*
 __MACOSX
+*.stderr
+*.stdout
 *$py.class
 wandb/
 training/wandb_runs/*

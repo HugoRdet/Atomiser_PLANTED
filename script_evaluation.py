@@ -73,14 +73,14 @@ bands_yaml = "./data/bands_info/bands.yaml"
 trans_config = transformations_config_flair(bands_yaml, config_model)
 
 
-
+ 
 wand = True
 wandb_logger = None
 if wand:
     if os.environ.get("LOCAL_RANK", "0") == "0":
         import wandb
         wandb.init(
-            name=xp_name,
+            name=config_model['encoder'],
             project="PLANTED",
             config=config_model
         )
