@@ -325,11 +325,11 @@ class Model(pl.LightningModule):
         
         
 
-        self.log("val_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.metric_Acc_test.reset()
         self.metric_F1_test.reset()
