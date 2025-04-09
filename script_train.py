@@ -111,7 +111,7 @@ trainer = Trainer(
     logger=wandb_logger,
     log_every_n_steps=1,
     accelerator="gpu",
-    callbacks=[early_stop_callback, checkpoint_callback],
+    callbacks=[ checkpoint_callback],
     default_root_dir="./checkpoints/",
     val_check_interval=0.1
 )
