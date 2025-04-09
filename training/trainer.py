@@ -263,14 +263,14 @@ class Model(pl.LightningModule):
         F1_com=self.metric_F1_validation_com.compute()
         F1_rare=self.metric_F1_validation_rare.compute()
         
-        self.log("val_loss", loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("log val_loss", torch.log(loss), on_step=True, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("log val_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
-        self.log("val_Acc", Acc, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1", F1_score, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_freq", F1_freq, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_com", F1_com, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_rare", F1_rare, on_step=True, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.metric_Acc_validation.reset()
         self.metric_F1_validation.reset()
