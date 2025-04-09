@@ -127,6 +127,7 @@ class Model(pl.LightningModule):
 
         self.metric_Acc_train.update(y_hat,labels)
         self.metric_F1_train.update(y_hat,labels)
+
         if y_hat[frequency==0].shape[0]!=0:
             self.metric_F1_train_freq.update(y_hat[frequency==0],labels[frequency==0])
         if y_hat[frequency==1].shape[0]!=0:
@@ -148,13 +149,13 @@ class Model(pl.LightningModule):
         metrics = self.trainer.callback_metrics
         loss = metrics.get("train_loss", float("inf"))
 
-        IoU=self.metric_IoU_val.compute()
+        
 
-        Acc=self.metric_Acc_validation.compute()
-        F1_score=self.metric_F1_validation.compute()
-        F1_freq=self.metric_F1_validation_freq.compute()
-        F1_com=self.metric_F1_validation_com.compute()
-        F1_rare=self.metric_F1_validation_rare.compute()
+        Acc=self.metric_Acc_train.compute()
+        F1_score=self.metric_F1_train.compute()
+        F1_freq=self.metric_F1_train_freq.compute()
+        F1_com=self.metric_F1_train_com.compute()
+        F1_rare=self.metric_F1_train_rare.compute()
         
         self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
         self.log("log train_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
@@ -187,25 +188,38 @@ class Model(pl.LightningModule):
 
 
     def process_data(self,batch):
+        L_tokens=[]
+        L_masks=[]
         img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al,labels,frequency = batch
-        tokens_s2,tokens_mask_s2=self.get_tokens(img_s2,date_s2,mask_s2,mode="optique",modality="s2")
-        tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
-        tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
-        tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
-        tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
-
-
-        tokens=torch.cat([tokens_s2,
-                          tokens_l7,
-                          tokens_mo,
-                          tokens_s1,
-                          tokens_al],dim=1)
         
-        tokens_mask=torch.cat([tokens_mask_s2,
-                               tokens_mask_l7,
-                               tokens_mask_mo,
-                               tokens_mask_s1,
-                               tokens_mask_al],dim=1)
+        if self.config["trainer"]["S2"]:
+            tokens_s2,tokens_mask_s2=self.get_tokens(img_s2,date_s2,mask_s2,mode="optique",modality="s2")
+            L_masks.append(tokens_mask_s2)
+            L_tokens.append(tokens_s2)
+        
+        if self.config["trainer"]["L7"]:
+            tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
+            L_masks.append(tokens_mask_l7)
+            L_tokens.append(tokens_l7)
+
+        if self.config["trainer"]["MODIS"]:
+            tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
+            L_masks.append(tokens_mask_mo)
+            L_tokens.append(tokens_mo)
+
+        if self.config["trainer"]["S1"]:
+            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
+            L_masks.append(tokens_mask_s1)
+            L_tokens.append(tokens_s1)
+
+        if self.config["trainer"]["ALOS"]:
+            tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
+            L_masks.append(tokens_mask_al)
+            L_tokens.append(tokens_al)
+
+
+        tokens=torch.cat(L_tokens,dim=1)
+        tokens_mask=torch.cat([L_masks],dim=1)
 
 
             

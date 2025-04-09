@@ -542,7 +542,7 @@ class CustomPlanted(Dataset):
 import torch.distributed as dist
 
 class CustomPlantedDataModule(pl.LightningDataModule):
-    def __init__(self, path,config,trans_config, batch_size=8, num_workers=8):
+    def __init__(self, path,config,trans_config, batch_size=8, num_workers=16):
         super().__init__()
         self.train_file = path + "_train.h5"
         self.val_file = path + "_validation.h5"
