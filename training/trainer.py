@@ -68,8 +68,6 @@ class Model(pl.LightningModule):
 
         
 
-        self.metric_IoU_val = torchmetrics.classification.MulticlassJaccardIndex(self.num_classes, average="macro")
-        self.metric_IoU_test = torchmetrics.classification.MulticlassJaccardIndex(self.num_classes, average=None)
 
         self.confmat_test = torchmetrics.ConfusionMatrix(
             task='multiclass',
@@ -230,11 +228,17 @@ class Model(pl.LightningModule):
         tokens,tokens_mask,labels,frequency=self.process_data(batch)
         
         y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
+
+        assert torch.all((labels >= 0) & (labels < self.num_classes)), "Found invalid labels!"
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
 
+
+
         y_hat=torch.argmax(y_hat,dim=1)
+
+        
         
 
         self.metric_Acc_validation.update(y_hat,labels)
@@ -256,7 +260,6 @@ class Model(pl.LightningModule):
         metrics = self.trainer.callback_metrics
         loss = metrics.get("val_loss", float("inf"))
 
-        IoU=self.metric_IoU_val.compute()
 
         Acc=self.metric_Acc_validation.compute()
         F1_score=self.metric_F1_validation.compute()
