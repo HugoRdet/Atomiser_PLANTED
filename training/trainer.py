@@ -247,7 +247,7 @@ class Model(pl.LightningModule):
             self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
 
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=False)
+        self.log("val_loss", loss, on_step=False, on_epoch=False, logger=True, sync_dist=False)
 
         return loss
 
