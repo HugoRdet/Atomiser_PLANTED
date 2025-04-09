@@ -21,6 +21,7 @@ import torchmetrics
 import warnings
 import wandb
 
+
 #BigEarthNet...
 warnings.filterwarnings("ignore", message="No positive samples found in target, recall is undefined. Setting recall to one for all thresholds.")
 
@@ -110,7 +111,10 @@ class Model(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
+        
+
         tokens,tokens_mask,labels,frequency=self.process_data(batch)
+        
         
 
         y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=True)
@@ -132,6 +136,8 @@ class Model(pl.LightningModule):
 
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, logger=True, sync_dist=False)
+
+        
 
         return loss 
 

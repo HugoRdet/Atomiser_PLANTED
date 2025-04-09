@@ -352,12 +352,15 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
 
             # Write all processed arrays to the corresponding slice in the HDF5 datasets
             start_idx = global_index
+            
             end_idx = global_index + num_samples_file
             datasets["s1"][start_idx:end_idx] = s1_norm
             datasets["s2"][start_idx:end_idx] = s2_norm
             datasets["l7"][start_idx:end_idx] = l7_norm
             datasets["modis"][start_idx:end_idx] = modis_norm
             datasets["alos"][start_idx:end_idx] = alos_norm
+
+
 
             datasets["s1_mask"][start_idx:end_idx] = s1_mask
             datasets["s2_mask"][start_idx:end_idx] = s2_mask
@@ -373,6 +376,7 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
 
             datasets["label"][start_idx:end_idx] = labels
             datasets["frequencies"][start_idx:end_idx] = frequencies  # Corrected
+            global_index=end_idx
 
         
 
@@ -538,7 +542,7 @@ class CustomPlanted(Dataset):
 import torch.distributed as dist
 
 class CustomPlantedDataModule(pl.LightningDataModule):
-    def __init__(self, path,config,trans_config, batch_size=8, num_workers=4):
+    def __init__(self, path,config,trans_config, batch_size=8, num_workers=8):
         super().__init__()
         self.train_file = path + "_train.h5"
         self.val_file = path + "_train.h5"
@@ -586,7 +590,8 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             num_workers=self.num_workers,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            pin_memory=True,  # Enable pinned memory
         )
 
     def val_dataloader(self):
@@ -595,7 +600,8 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         return DataLoader(
             self.val_dataset,
             num_workers=self.num_workers,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            pin_memory=True,  # Enable pinned memory
         )
 
     def test_dataloader(self):
@@ -605,5 +611,6 @@ class CustomPlantedDataModule(pl.LightningDataModule):
         return DataLoader(
             self.test_dataset,
             num_workers=self.num_workers,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            pin_memory=True,  # Enable pinned memory
         )
