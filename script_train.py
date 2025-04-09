@@ -109,9 +109,9 @@ trainer = Trainer(
     #devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
-    log_every_n_steps=1,
+    log_every_n_steps=1024,
     accelerator="gpu",
-    callbacks=[ checkpoint_callback],
+    callbacks=[early_stop_callback, checkpoint_callback],
     default_root_dir="./checkpoints/",
     val_check_interval=0.1
 )
