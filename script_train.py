@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import einops as einops
 from einops import rearrange, repeat
 from einops.layers.torch import Reduce
-
+from lightning.pytorch.callbacks import GradientAccumulationScheduler
 import matplotlib.pyplot as plt
 
 from configilm import util
@@ -101,6 +101,7 @@ early_stop_callback = EarlyStopping(
 )
 
 
+accumulator = GradientAccumulationScheduler(scheduling={0: 20, 1:10 ,2: 1})
 
 # Trainer
 trainer = Trainer(
@@ -111,7 +112,7 @@ trainer = Trainer(
     logger=wandb_logger,
     log_every_n_steps=256,
     accelerator="gpu",
-    callbacks=[early_stop_callback, checkpoint_callback],
+    callbacks=[early_stop_callback, checkpoint_callback,accumulator],
     default_root_dir="./checkpoints/",
     val_check_interval=0.1
 )
