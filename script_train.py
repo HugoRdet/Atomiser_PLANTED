@@ -95,7 +95,7 @@ checkpoint_callback = ModelCheckpoint(
 early_stop_callback = EarlyStopping(
     monitor="val_loss",
     min_delta=0.00,
-    patience=15,
+    patience=75,
     verbose=False,
     mode="max"
 )
@@ -109,11 +109,11 @@ trainer = Trainer(
     #devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
-    log_every_n_steps=1024,
+    log_every_n_steps=256,
     accelerator="gpu",
     callbacks=[early_stop_callback, checkpoint_callback],
     default_root_dir="./checkpoints/",
-    val_check_interval=0.001
+    val_check_interval=0.1
 )
 
 
