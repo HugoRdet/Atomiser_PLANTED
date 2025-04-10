@@ -46,25 +46,25 @@ class Model(pl.LightningModule):
         self.name = name
         self.table=False
 
-        self.metric_Acc_train = torchmetrics.Accuracy(task="multiclass", num_classes=40)
-        self.metric_Acc_validation = torchmetrics.Accuracy(task="multiclass", num_classes=40)
-        self.metric_Acc_test = torchmetrics.Accuracy(task="multiclass", num_classes=40)
+        self.metric_Acc_train = torchmetrics.Accuracy(task="multiclass", num_classes=40,average="micro")
+        self.metric_Acc_validation = torchmetrics.Accuracy(task="multiclass", num_classes=40,average="micro")
+        self.metric_Acc_test = torchmetrics.Accuracy(task="multiclass", num_classes=40,average="micro")
 
-        self.metric_F1_train = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_validation = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_test = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_train = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_validation = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_test = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
 
-        self.metric_F1_train_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_validation_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_test_freq = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_train_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_validation_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_test_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
 
-        self.metric_F1_train_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_validation_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_test_com = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_train_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_validation_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_test_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
 
-        self.metric_F1_train_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_validation_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
-        self.metric_F1_test_rare = torchmetrics.F1Score(task="multiclass", num_classes=40)
+        self.metric_F1_train_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_validation_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_test_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
 
         
 
@@ -230,11 +230,7 @@ class Model(pl.LightningModule):
         y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
 
 
-        try:
-            assert torch.all((labels >= 0) & (labels < self.num_classes)), "Found invalid labels!"
-        except:
-            print("\n num classes : ",self.num_classes)
-            print(labels)
+       
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
@@ -367,7 +363,7 @@ class Model(pl.LightningModule):
         
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30000, eta_min=0.0)#self.config["trainer"]["epochs"]*2
-        #cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, eta_min=0.0)
+        #cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30000, eta_min=0.0)#self.config["trainer"]["epochs"]*2
+        cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30000, T_mult=2, eta_min=0.0)
         return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': cosine_anneal_scheduler, 'interval': 'step', 'monitor': 'val_loss'}}
 
