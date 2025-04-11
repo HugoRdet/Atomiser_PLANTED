@@ -6,9 +6,9 @@ from training.ResNet import *
 from collections import defaultdict
 from training import *
 import os
-from pytorch_lightning import Trainer,seed_everything
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 import torch
 import numpy as np
 from torch import nn, einsum
@@ -25,6 +25,7 @@ seed_everything(42, workers=True)
 from configilm.extra.DataSets import BENv2_DataSet
 from configilm.extra.DataModules import BENv2_DataModule
 import random
+
 
 
 import argparse
