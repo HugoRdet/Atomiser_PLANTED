@@ -79,6 +79,8 @@ def compute_channel_mean_std(mode="train"):
         l7=data["l7"] #shape (20,4,4,6) 
         modis=data["modis"] #shape (60,1,1,7) 
         alos=data["alos"] #shape (4,4,4,3)
+        alos[:,:,:,0]=10*np.log(alos[:,:,:,0]**2)-83.0
+        alos[:,:,:,1]=10*np.log(alos[:,:,:,1]**2)-83.0
 
         for img_idx in range(s2.shape[0]):
             

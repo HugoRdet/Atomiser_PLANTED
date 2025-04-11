@@ -316,12 +316,16 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             if global_index + num_samples_file > total_samples:
                 num_samples_file = total_samples - global_index
 
+            alos=data["alos"][:num_samples_file]
+            alos[:,:,:,0]=10*np.log(alos[:,:,:,0]**2)-83.0
+            alos[:,:,:,1]=10*np.log(alos[:,:,:,1]**2)-83.0
+
             # Process normalization over all samples from this file at once
             s1_norm = ((data["s1"][:num_samples_file] - s1_mean) / s1_std).astype(np.float16)
             s2_norm = ((data["s2"][:num_samples_file] - s2_mean) / s2_std).astype(np.float16)
             l7_norm = ((data["l7"][:num_samples_file] - l7_mean) / l7_std).astype(np.float16)
             modis_norm = ((data["modis"][:num_samples_file] - modis_mean) / modis_std).astype(np.float16)
-            alos_norm = ((data["alos"][:num_samples_file] - alos_mean) / alos_std).astype(np.float16)
+            alos_norm = ((alos- alos_mean) / alos_std).astype(np.float16)
 
             # Process masks (cast to uint8 for storage)
             s1_mask = data["s1_mask"][:num_samples_file].astype(np.uint8)
