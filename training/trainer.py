@@ -35,7 +35,7 @@ class Model(pl.LightningModule):
         self.num_classes = config["trainer"]["num_classes"]
         self.logging_step = config["trainer"]["logging_step"]
         self.actual_epoch = 0
-        self.weights_loss= torch.log(1+self.get_label_weights().to(torch.float32))
+        #self.weights_loss= torch.log(1+self.get_label_weights().to(torch.float32))
         self.best_val_loss = float("inf")
         self.best_val_ap = float("-inf")
         self.best_train_loss = float("inf")
@@ -96,8 +96,8 @@ class Model(pl.LightningModule):
             )
 
 
-        print(self.weights_loss)
-        self.loss = nn.CrossEntropyLoss(weight=self.weights_loss)
+        #print(self.weights_loss)
+        self.loss = nn.CrossEntropyLoss()
         self.lr = float(config["trainer"]["lr"])
         self.max_tokens=self.config["trainer"]["max_tokens"]
 
