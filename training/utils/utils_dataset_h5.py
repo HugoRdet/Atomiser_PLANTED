@@ -317,8 +317,9 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
                 num_samples_file = total_samples - global_index
 
             alos=data["alos"][:num_samples_file]
-            alos[:,:,:,0]=10*np.log(alos[:,:,:,0]**2)-83.0
-            alos[:,:,:,1]=10*np.log(alos[:,:,:,1]**2)-83.0
+            alos_in_db=10*np.log(alos[:,:,:,:2]**2)-83.0
+            alos_in_db[alos[:,:,:,:2]==0]=0
+            alos[:,:,:,:2]=alos_in_db[:,:,:,:2]
 
             # Process normalization over all samples from this file at once
             s1_norm = ((data["s1"][:num_samples_file] - s1_mean) / s1_std).astype(np.float16)
