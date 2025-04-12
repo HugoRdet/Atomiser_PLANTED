@@ -454,7 +454,7 @@ class transformations_config_flair:
         
 
         tokens=einops.rearrange(tokens,"b t h w c f ->b  (t h w c) f")
-
+        token_masks=mask_sen
         condition = (token_masks == 1)  # shape [b, t, h, w, c, f]
         #if mode=="s1":
         token_masks[..., 0, :][condition[..., 0, :]] = 2
