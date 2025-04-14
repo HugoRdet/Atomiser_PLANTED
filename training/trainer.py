@@ -128,7 +128,7 @@ class Model(pl.LightningModule):
     
 
             
-
+    
 
     def training_step(self, batch, batch_idx):
         
@@ -209,6 +209,7 @@ class Model(pl.LightningModule):
 
 
     def process_data(self,batch):
+        
         L_tokens=[]
         L_masks=[]
         img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al,labels,frequency = batch

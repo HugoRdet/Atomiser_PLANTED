@@ -141,9 +141,9 @@ def compute_channel_mean_std(mode="train"):
     alos_std = np.sqrt(np.maximum(alos_sum_sq / alos_count - alos_mean ** 2, 0))
 
 
-    print(s1_mean,s1_std)
-    print(alos_mean,alos_std)
-    print(s2_mean,s2_std)
+    print("s1 :",s1_mean,s1_std)
+    print("alos :",alos_mean,alos_std)
+    print("s2 :",s2_mean,s2_std)
 
     torch.save(torch.from_numpy(s1_mean), "./data/normalisation/s1_mean.pt")
     torch.save(torch.from_numpy(s1_std), "./data/normalisation/s1_std.pt")

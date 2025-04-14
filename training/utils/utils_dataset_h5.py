@@ -316,10 +316,15 @@ def create_dataset(name="tiny", mode="train", max_imgs=-1):
             if global_index + num_samples_file > total_samples:
                 num_samples_file = total_samples - global_index
 
-            alos=data["alos"][:num_samples_file]
-            alos_in_db=10*np.log(alos[:,:,:,:2]**2)-83.0
-            alos_in_db[alos[:,:,:,:2]==0]=0
-            alos[:,:,:,:2]=alos_in_db[:,:,:,:2]
+            alos = data["alos"][:num_samples_file]
+            alos_mask = data["alos_mask"][:num_samples_file]
+
+            # Prepare masked log-transform for the first two channels
+            alos_db = np.copy(alos[:, :, :, :, :2])
+            mask = (alos_mask[:, :, :, :, :2] == 1) & (alos_db != 0)
+            alos_db[mask] = 10 * np.log(alos_db[mask] ** 2) - 83.0
+            alos[:, :, :, :, :2] = alos_db
+
 
             # Process normalization over all samples from this file at once
             s1_norm = ((data["s1"][:num_samples_file] - s1_mean) / s1_std).astype(np.float16)
