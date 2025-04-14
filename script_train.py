@@ -101,18 +101,18 @@ early_stop_callback = EarlyStopping(
 )
 
 
-accumulator = GradientAccumulationScheduler(scheduling={0: 20, 1:10 ,2: 1})
+#accumulator = GradientAccumulationScheduler(scheduling={0: 20, 1:10 ,2: 1})
 
 # Trainer
 trainer = Trainer(
     use_distributed_sampler=False,
-    #strategy="ddp",
-    #devices=-1,
+    strategy="ddp",
+    devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
     log_every_n_steps=256,
     accelerator="gpu",
-    callbacks=[early_stop_callback, checkpoint_callback,accumulator],
+    callbacks=[early_stop_callback, checkpoint_callback],#accumulator],
     default_root_dir="./checkpoints/",
     val_check_interval=1.0,
     limit_train_batches=0.001,
@@ -130,7 +130,6 @@ trainer.fit(model, datamodule=data_module)
 
 # ... after training completes, within your "if wand" block:
 if wand and os.environ.get("LOCAL_RANK", "0") == "0":
-    print("ici")
     run_id = wandb.run.id
     print("WANDB_RUN_ID:", run_id)
     
