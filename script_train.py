@@ -114,7 +114,9 @@ trainer = Trainer(
     accelerator="gpu",
     callbacks=[early_stop_callback, checkpoint_callback,accumulator],
     default_root_dir="./checkpoints/",
-    val_check_interval=0.33
+    val_check_interval=1.0,
+    limit_train_batches=0.001,
+    limit_val_batches=0.001
 )
 
 
