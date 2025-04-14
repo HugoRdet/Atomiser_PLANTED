@@ -79,6 +79,7 @@ class Model(pl.LightningModule):
         if config["encoder"] == "Atomiser":
             self.encoder = Atomiser(
                 config=self.config,
+                transform=self.transform,
                 depth=config["Atomiser"]["depth"],
                 num_latents=config["Atomiser"]["num_latents"],
                 latent_dim=config["Atomiser"]["latent_dim"],
@@ -119,8 +120,8 @@ class Model(pl.LightningModule):
 
         return res
         
-    def forward(self, tokens,tokens_masks,training=False):
-        model_output=self.encoder(tokens,tokens_masks,training=training)
+    def forward(self, tokens,training=False):
+        model_output=self.encoder(tokens,training=training)
        
      
       
@@ -128,16 +129,13 @@ class Model(pl.LightningModule):
     
 
             
-    
+
 
     def training_step(self, batch, batch_idx):
         
 
-        tokens,tokens_mask,labels,frequency=self.process_data(batch)
-        
-        
-
-        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=True)
+        labels,frequency=batch[-2:]
+        y_hat = self.forward(batch[:-2],training=False)
         
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
@@ -194,63 +192,19 @@ class Model(pl.LightningModule):
         self.metric_F1_train_rare.reset()
 
     
-    def get_tokens(self,img,date,mask,mode="optique",modality="s2"):
-        
-  
-
-        if mode=="optique":
-            return self.transform.apply_transformations_optique(img,date,mask,modality)
-        if mode=="sar":
-            return self.transform.apply_transformations_SAR(img,date,mask,modality)
+    
 
 
 
  
 
 
-    def process_data(self,batch):
-        
-        L_tokens=[]
-        L_masks=[]
-        img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al,labels,frequency = batch
-        
-        if self.config["dataset"]["S2"]:
-            tokens_s2,tokens_mask_s2=self.get_tokens(img_s2,date_s2,mask_s2,mode="optique",modality="s2")
-            L_masks.append(tokens_mask_s2)
-            L_tokens.append(tokens_s2)
-        
-        if self.config["dataset"]["L7"]:
-            tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
-            L_masks.append(tokens_mask_l7)
-            L_tokens.append(tokens_l7)
-
-        if self.config["dataset"]["MODIS"]:
-            tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
-            L_masks.append(tokens_mask_mo)
-            L_tokens.append(tokens_mo)
-
-        if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
-            L_masks.append(tokens_mask_s1)
-            L_tokens.append(tokens_s1)
-
-        if self.config["dataset"]["ALOS"]:
-            tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
-            L_masks.append(tokens_mask_al)
-            L_tokens.append(tokens_al)
-
-
-        tokens=torch.cat(L_tokens,dim=1)
-        tokens_mask=torch.cat(L_masks,dim=1)
-
-
-            
-        return tokens,tokens_mask,labels,frequency
+    
     
     def validation_step(self, batch, batch_idx):
-        tokens,tokens_mask,labels,frequency=self.process_data(batch)
         
-        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
+        labels,frequency=batch[-2:]
+        y_hat = self.forward(batch[:-2],training=False)
 
 
        
@@ -315,10 +269,8 @@ class Model(pl.LightningModule):
         super().on_test_epoch_start()
         
     def test_step(self, batch, batch_idx):
-        tokens,tokens_mask,labels,frequency=self.process_data(batch)
-        
-
-        y_hat = self.forward(tokens,tokens_masks=tokens_mask,training=False)
+        labels,frequency=batch[-2:]
+        y_hat = self.forward(batch[:-2],training=False)
         
         labels=labels.to(torch.long)
         
