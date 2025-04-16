@@ -292,6 +292,9 @@ class Atomiser(nn.Module):
         data[batch_idx, token_idx, :self.wavelength_bits_size] = self.alos  # assuming self.alos shape: [wavelength_bits_size]
         tokens_masks[batch_idx, token_idx] = 1
 
+
+     
+
         tokens_masks=tokens_masks.to(bool)
 
         data[tokens_masks==0]=0
@@ -313,12 +316,18 @@ class Atomiser(nn.Module):
                 masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
 
             if torch.isnan(x).any():
-                print("[Latents] NaN before attention")
+                print("[Latents] NaN before attention 1")
             else:
-                print("ok!")
+                print("ok! 1")
 
             
             x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
+
+            if torch.isnan(x).any():
+                print("[Latents] NaN before attention 2")
+            else:
+                print("ok! 2")
+
             x = cross_ff(x) + x
 
             for self_attn, self_ff in self_attns:
