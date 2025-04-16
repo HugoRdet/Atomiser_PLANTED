@@ -430,9 +430,12 @@ class transformations_config_flair:
             
         shape_input_wavelength=self.get_shape_attributes_config("wavelength")
         target_shape_w=(im_sen.shape[0],im_sen.shape[1],im_sen.shape[2],im_sen.shape[3],im_sen.shape[4],shape_input_wavelength)
-        central_wavelength_processing=torch.zeros(target_shape_w)
+        central_wavelength_processing=torch.empty(target_shape_w)
+        
+        
 
         if wave_encoding!=None:
+            central_wavelength_processing=wave_encoding
             print(wave_encoding.shape,"   ",central_wavelength_processing.shape)
                
         value_processed=self.get_bvalue_processing(im_sen)
