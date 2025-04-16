@@ -316,16 +316,7 @@ class Atomiser(nn.Module):
                 masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
 
 
-            assert torch.all((masked_attention_mask == 0) | (masked_attention_mask == 1)), "Mask contains values other than 0 or 1"
-
-            # Check if any sample has all tokens masked (i.e., all mask values == False)
-            fully_masked_samples = (masked_attention_mask.sum(dim=1) == 0)
-
-            
-            if fully_masked_samples.any():
-                sample_ids = torch.nonzero(fully_masked_samples).squeeze(-1).tolist()
-                print(f"[Rank {self.global_rank if hasattr(self, 'global_rank') else 0}] Fully masked samples detected at indices: {sample_ids}")
-
+            print(tokens_masks.dtype)
 
             
             x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
