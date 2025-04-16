@@ -445,9 +445,10 @@ class transformations_config_flair:
    
 
 
-        tokens=torch.cat([
-                          value_processed.to(im_sen.device),
-                        
+        tokens=torch.cat([central_wavelength_processing.to(im_sen.device),
+                          #value_processed.to(im_sen.device),
+                          #band_post_proc.to(im_sen.device),
+                          #time_encoding.to(im_sen.device)         
                 ],dim=5)
         
         
