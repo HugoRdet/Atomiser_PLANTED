@@ -221,7 +221,7 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_s2)
             L_tokens.append(tokens_s2)
 
-            if torch.isnan(tokens_s2).any():
+            if torch.isnan(mask_s2).any():
                 print("[S2] NaN in tokens_s2")
         
         if self.config["dataset"]["L7"]:
@@ -229,7 +229,7 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_l7)
             L_tokens.append(tokens_l7)
 
-            if torch.isnan(tokens_l7).any():
+            if torch.isnan(mask_l7).any():
                 print("[S2] NaN in tokens_l7")
 
         if self.config["dataset"]["MODIS"]:
@@ -237,7 +237,7 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_mo)
             L_tokens.append(tokens_mo)
 
-            if torch.isnan(tokens_mo).any():
+            if torch.isnan(mask_mo).any():
                 print("[S2] NaN in tokens_mo")
 
         if self.config["dataset"]["S1"]:
@@ -245,7 +245,7 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
-            if torch.isnan(tokens_s1).any():
+            if torch.isnan(mask_s1).any():
                 print("[S2] NaN in tokens_s1")
 
         if self.config["dataset"]["ALOS"]:
@@ -253,7 +253,7 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
 
-            if torch.isnan(tokens_al).any():
+            if torch.isnan(mask_al).any():
                 print("[S2] NaN in tokens_al")
 
 
