@@ -104,8 +104,8 @@ class Model(pl.LightningModule):
             )
 
 
-        print(self.weights_loss)
-        self.loss = nn.CrossEntropyLoss()#weight=self.weights_loss)
+  
+        self.loss = nn.CrossEntropyLoss(weight=self.weights_loss)
         self.lr = float(config["trainer"]["lr"])
         self.max_tokens=self.config["trainer"]["max_tokens"]
 
@@ -219,7 +219,7 @@ class Model(pl.LightningModule):
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
 
-        print("val loss",loss)
+      
 
         #if torch.isnan(loss) or torch.isinf(loss):
         #    print(f"[Rank {self.global_rank}] Loss is NaN!")
