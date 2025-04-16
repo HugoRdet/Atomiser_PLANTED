@@ -270,56 +270,41 @@ class Atomiser(nn.Module):
 
 
 
-    def forward(self,data,training=False):
-        data,tokens_masks=self.process_data(data)
-        b, *axis, _, device, dtype = *data.shape, data.device, data.dtype
+    def forward(self, data, training=False):
+        data, tokens_masks = self.process_data(data)
+        b, *_, device, dtype = *data.shape, data.device, data.dtype
 
-        
+        x = repeat(self.latents, 'n d -> b n d', b=b)
 
-        
-        
-
-        x = repeat(self.latents, 'n d -> b n d', b = b)
-        # For tokens where tokens_masks equals 2
-        mask2 = (tokens_masks == 2)  # shape: [B, T]
+        # Handle special mask values
+        mask2 = (tokens_masks == 2)
         batch_idx, token_idx = torch.nonzero(mask2, as_tuple=True)
-        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.sen_1  # self.sen_1 shape: [wavelength_bits_size]
+        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.sen_1
         tokens_masks[batch_idx, token_idx] = 1
 
-        # For tokens where tokens_masks equals 3
         mask3 = (tokens_masks == 3)
         batch_idx, token_idx = torch.nonzero(mask3, as_tuple=True)
-        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.alos  # assuming self.alos shape: [wavelength_bits_size]
+        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.alos
         tokens_masks[batch_idx, token_idx] = 1
 
+        tokens_masks = tokens_masks.to(bool)
+        data[tokens_masks == 0] = 0
 
-     
+        # Print token statistics
+        total_tokens = tokens_masks.numel()
+        unmasked_tokens = tokens_masks.sum().item()
+        masked_tokens = total_tokens - unmasked_tokens
+        print(f"Total tokens: {total_tokens}, Unmasked tokens: {unmasked_tokens}, Masked tokens: {masked_tokens}")
 
-        tokens_masks=tokens_masks.to(bool)
-
-        data[tokens_masks==0]=0
-
-
-        
-
-
-        
-        # layers
-        
+        # Proceed with the rest of the forward pass
         for cross_attn, cross_ff, self_attns in self.layers:
+            masked_data = data.clone()
+            masked_attention_mask = tokens_masks.clone()
 
-            masked_data=data.clone()
-            masked_attention_mask=tokens_masks.clone()
-            
-    
-            if training and self.masking>0:
-                masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
+            if training and self.masking > 0:
+                masked_data, masked_attention_mask = masking(masked_data, masked_attention_mask, self.masking)
 
-
-            print(tokens_masks.dtype)
-
-            
-            x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
+            x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
 
             for self_attn, self_ff in self_attns:
@@ -330,6 +315,5 @@ class Atomiser(nn.Module):
             x = self_attn(x) + x
             x = self_ff(x) + x
 
-        
-
         return self.to_logits(x)
+
