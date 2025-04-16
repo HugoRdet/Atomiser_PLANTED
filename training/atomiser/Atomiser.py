@@ -249,17 +249,11 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
-     
-     
-            print("[S2] NaN in tokens_s1")
 
         if self.config["dataset"]["ALOS"]:
             tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos",wave_encoding=self.alos)
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
-
-
-            print("[S2] NaN in tokens_al")
 
 
         tokens=torch.cat(L_tokens,dim=1)
