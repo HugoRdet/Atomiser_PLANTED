@@ -129,6 +129,7 @@ class Atomiser(nn.Module):
         self.alos = nn.Parameter(torch.empty(shape_input_wavelength))
         nn.init.trunc_normal_(self.alos, mean=0.0, std=0.02, a=-2.0, b=2.0)
         
+        
         # Apply truncated normal initialization with specified parameters
 
 
@@ -136,6 +137,8 @@ class Atomiser(nn.Module):
 
         #https://pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
+        nn.init.trunc_normal_(self.latents, mean=0.0, std=0.02, a=-2.0, b=2.0)
+
 
         get_cross_attn = lambda: PreNorm(latent_dim, Attention(latent_dim, input_dim, heads = cross_heads, dim_head = cross_dim_head, dropout = attn_dropout), context_dim = input_dim)
         get_cross_ff = lambda: PreNorm(latent_dim, FeedForward(latent_dim, dropout = ff_dropout))
@@ -317,5 +320,8 @@ class Atomiser(nn.Module):
         for self_attn, self_ff in self.lattent_attn_layers:
             x = self_attn(x) + x
             x = self_ff(x) + x
+
+        if torch.isnan(x).any():
+            print("[Latents] NaN before attention")
 
         return self.to_logits(x)
