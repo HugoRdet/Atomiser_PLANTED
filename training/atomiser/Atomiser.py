@@ -315,19 +315,16 @@ class Atomiser(nn.Module):
             if training and self.masking>0:
                 masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
 
-            if torch.isnan(x).any():
-                print("[Latents] NaN before attention 1")
-            else:
-                print("ok! 1")
+            # Check if any sample has all tokens masked (i.e., all mask values == False)
+            fully_masked_samples = (masked_attention_mask.sum(dim=1) == 0)
+
+            if fully_masked_samples.any():
+                sample_ids = torch.nonzero(fully_masked_samples).squeeze(-1).tolist()
+                print(f"[Rank {self.global_rank if hasattr(self, 'global_rank') else 0}] Fully masked samples detected at indices: {sample_ids}")
+
 
             
             x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
-
-            if torch.isnan(x).any():
-                print("[Latents] NaN before attention 2")
-            else:
-                print("ok! 2")
-
             x = cross_ff(x) + x
 
             for self_attn, self_ff in self_attns:
