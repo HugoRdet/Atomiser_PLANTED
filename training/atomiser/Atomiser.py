@@ -128,6 +128,8 @@ class Atomiser(nn.Module):
 
         self.alos = nn.Parameter(torch.empty(shape_input_wavelength))
         nn.init.trunc_normal_(self.alos, mean=0.0, std=0.02, a=-2.0, b=2.0)
+
+        
         
         
         # Apply truncated normal initialization with specified parameters
@@ -243,7 +245,7 @@ class Atomiser(nn.Module):
 
 
         if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
+            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=self.sen_1)
             #L_masks.append(tokens_mask_s1)
             #L_tokens.append(tokens_s1)
 
@@ -252,7 +254,7 @@ class Atomiser(nn.Module):
             print("[S2] NaN in tokens_s1")
 
         if self.config["dataset"]["ALOS"]:
-            tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
+            tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos",wave_encoding=self.alos)
             #L_masks.append(tokens_mask_al)
             #L_tokens.append(tokens_al)
 

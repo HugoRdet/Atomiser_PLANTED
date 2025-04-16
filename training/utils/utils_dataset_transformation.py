@@ -403,7 +403,7 @@ class transformations_config_flair:
         return tokens,token_masks
     
 
-    def apply_transformations_SAR(self,im_sen,dates_sen,mask_sen,mode):
+    def apply_transformations_SAR(self,im_sen,dates_sen,mask_sen,mode,wave_encoding=None):
         if mode=="s1":
             tmp_infos=self.bands_sen2_infos
             res=None
@@ -431,6 +431,9 @@ class transformations_config_flair:
         shape_input_wavelength=self.get_shape_attributes_config("wavelength")
         target_shape_w=(im_sen.shape[0],im_sen.shape[1],im_sen.shape[2],im_sen.shape[3],im_sen.shape[4],shape_input_wavelength)
         central_wavelength_processing=torch.zeros(target_shape_w)
+
+        if wave_encoding!=None:
+            print(wave_encoding.shape,"   ",central_wavelength_processing.shape)
                
         value_processed=self.get_bvalue_processing(im_sen)
         
