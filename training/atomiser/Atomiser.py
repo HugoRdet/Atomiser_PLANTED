@@ -309,6 +309,9 @@ class Atomiser(nn.Module):
             if training and self.masking>0:
                 masked_data,masked_attention_mask=masking(masked_data,masked_attention_mask,self.masking)
 
+            if torch.isnan(x).any():
+                print("[Latents] NaN before attention")
+
             
             x = cross_attn(x, context = masked_data, mask = masked_attention_mask ) + x
             x = cross_ff(x) + x
@@ -321,7 +324,6 @@ class Atomiser(nn.Module):
             x = self_attn(x) + x
             x = self_ff(x) + x
 
-        if torch.isnan(x).any():
-            print("[Latents] NaN before attention")
+        
 
         return self.to_logits(x)
