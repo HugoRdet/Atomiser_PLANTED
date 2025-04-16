@@ -206,14 +206,14 @@ class Atomiser(nn.Module):
             return int(len(self.config["wavelengths_encoding"].keys()))
         
 
-    def get_tokens(self,img,date,mask,mode="optique",modality="s2"):
+    def get_tokens(self,img,date,mask,mode="optique",modality="s2",wave_encoding=None):
         
   
 
         if mode=="optique":
             return self.transform.apply_transformations_optique(img,date,mask,modality)
         if mode=="sar":
-            return self.transform.apply_transformations_SAR(img,date,mask,modality)
+            return self.transform.apply_transformations_SAR(img,date,mask,modality,wave_encoding=wave_encoding)
                 
     def process_data(self,batch):
         L_tokens=[]
