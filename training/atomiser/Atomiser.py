@@ -290,11 +290,12 @@ class Atomiser(nn.Module):
         tokens_masks = tokens_masks.to(bool)
         data[tokens_masks == 0] = 0
 
-        # Print token statistics
-        total_tokens = tokens_masks.numel()
-        unmasked_tokens = tokens_masks.sum().item()
-        masked_tokens = total_tokens - unmasked_tokens
-        print(f"Total tokens: {total_tokens}, Unmasked tokens: {unmasked_tokens}, Masked tokens: {masked_tokens}")
+        print("Data min:", data.min().item())
+        print("Data max:", data.max().item())
+
+
+
+
 
         # Proceed with the rest of the forward pass
         for cross_attn, cross_ff, self_attns in self.layers:
