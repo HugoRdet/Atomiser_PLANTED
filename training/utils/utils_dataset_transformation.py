@@ -435,8 +435,9 @@ class transformations_config_flair:
         
 
         if wave_encoding!=None:
+            print(wave_encoding.shape,"   ",central_wavelength_processing[0, 0, 0, 0, 0, :])
             central_wavelength_processing.copy_(wave_encoding)
-            print(wave_encoding.shape,"   ",central_wavelength_processing.shape)
+            print(wave_encoding.shape,"   ",central_wavelength_processing[0, 0, 0, 0, 0, :])
                
         value_processed=self.get_bvalue_processing(im_sen)
         
