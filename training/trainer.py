@@ -20,7 +20,7 @@ import random
 import torchmetrics
 import warnings
 import wandb
-
+from torch.distributed import broadcast
 
 #BigEarthNet...
 warnings.filterwarnings("ignore", message="No positive samples found in target, recall is undefined. Setting recall to one for all thresholds.")
@@ -35,7 +35,14 @@ class Model(pl.LightningModule):
         self.num_classes = config["trainer"]["num_classes"]
         self.logging_step = config["trainer"]["logging_step"]
         self.actual_epoch = 0
-        self.weights_loss= torch.log(1+self.get_label_weights().to(torch.float32))
+        weights_loss= torch.log(1+self.get_label_weights().to(torch.float32))
+
+        # Ensure same weights on all GPUs
+        if torch.distributed.is_initialized():
+            torch.distributed.broadcast(weights_loss, src=0)
+
+        self.weights_loss=weights_loss
+
         self.best_val_loss = float("inf")
         self.best_val_ap = float("-inf")
         self.best_train_loss = float("inf")
@@ -98,7 +105,7 @@ class Model(pl.LightningModule):
 
 
         print(self.weights_loss)
-        self.loss = nn.CrossEntropyLoss(weight=self.weights_loss)
+        self.loss = nn.CrossEntropyLoss()#weight=self.weights_loss)
         self.lr = float(config["trainer"]["lr"])
         self.max_tokens=self.config["trainer"]["max_tokens"]
 
