@@ -221,11 +221,11 @@ class Model(pl.LightningModule):
 
         print("val loss",loss)
 
-        if torch.isnan(loss) or torch.isinf(loss):
-            print(f"[Rank {self.global_rank}] Loss is NaN!")
-            print("y_hat:", y_hat)
-            print("labels:", labels)
-            print("weights_loss:", self.weights_loss)
+        #if torch.isnan(loss) or torch.isinf(loss):
+        #    print(f"[Rank {self.global_rank}] Loss is NaN!")
+        #    print("y_hat:", y_hat)
+        #    print("labels:", labels)
+        #    print("weights_loss:", self.weights_loss)
 
 
 
