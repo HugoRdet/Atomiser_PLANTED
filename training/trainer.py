@@ -212,6 +212,8 @@ class Model(pl.LightningModule):
         labels=labels.to(torch.long)
         loss = self.loss(y_hat, labels)
 
+        print("val loss",loss)
+
 
 
         y_hat=torch.argmax(y_hat,dim=1) #
