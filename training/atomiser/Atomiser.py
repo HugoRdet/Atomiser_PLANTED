@@ -220,26 +220,41 @@ class Atomiser(nn.Module):
             tokens_s2,tokens_mask_s2=self.get_tokens(img_s2,date_s2,mask_s2,mode="optique",modality="s2")
             L_masks.append(tokens_mask_s2)
             L_tokens.append(tokens_s2)
+
+            if torch.isnan(tokens_s2).any():
+                print("[S2] NaN in tokens_s2")
         
         if self.config["dataset"]["L7"]:
             tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
             L_masks.append(tokens_mask_l7)
             L_tokens.append(tokens_l7)
 
+            if torch.isnan(tokens_l7).any():
+                print("[S2] NaN in tokens_l7")
+
         if self.config["dataset"]["MODIS"]:
             tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
             L_masks.append(tokens_mask_mo)
             L_tokens.append(tokens_mo)
+
+            if torch.isnan(tokens_mo).any():
+                print("[S2] NaN in tokens_mo")
 
         if self.config["dataset"]["S1"]:
             tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
+            if torch.isnan(tokens_s1).any():
+                print("[S2] NaN in tokens_s1")
+
         if self.config["dataset"]["ALOS"]:
             tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
+
+            if torch.isnan(tokens_al).any():
+                print("[S2] NaN in tokens_al")
 
 
         tokens=torch.cat(L_tokens,dim=1)
