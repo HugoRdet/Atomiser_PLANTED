@@ -463,6 +463,10 @@ class transformations_config_flair:
             #token_masks[token_masks==1]=3
         token_masks=einops.rearrange(mask_sen,"b t h w c -> b (t h w c)")
 
+
+        print(tokens[token_masks!=0].max())
+        print(tokens[token_masks!=0].min())
+
         
 
         

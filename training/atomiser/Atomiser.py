@@ -247,9 +247,6 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
-            print(L_tokens[-1][tokens_s1!=0].max())
-            print(L_tokens[-1][tokens_s1!=0].min())
-
      
      
             print("[S2] NaN in tokens_s1")
@@ -258,10 +255,6 @@ class Atomiser(nn.Module):
             tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
-
-            print(L_tokens[-1][tokens_mask_al!=0].max())
-            print(L_tokens[-1][tokens_mask_al!=0].min())
-
 
 
             print("[S2] NaN in tokens_al")
