@@ -246,8 +246,8 @@ class Atomiser(nn.Module):
 
         if self.config["dataset"]["S1"]:
             tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=self.sen_1)
-            #L_masks.append(tokens_mask_s1)
-            #L_tokens.append(tokens_s1)
+            L_masks.append(tokens_mask_s1)
+            L_tokens.append(tokens_s1)
 
      
      
@@ -255,8 +255,8 @@ class Atomiser(nn.Module):
 
         if self.config["dataset"]["ALOS"]:
             tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos",wave_encoding=self.alos)
-            #L_masks.append(tokens_mask_al)
-            #L_tokens.append(tokens_al)
+            L_masks.append(tokens_mask_al)
+            L_tokens.append(tokens_al)
 
 
             print("[S2] NaN in tokens_al")
@@ -277,17 +277,6 @@ class Atomiser(nn.Module):
         b, *_, device, dtype = *data.shape, data.device, data.dtype
 
         x = repeat(self.latents, 'n d -> b n d', b=b)
-
-        # Handle special mask values
-        mask2 = (tokens_masks == 2)
-        batch_idx, token_idx = torch.nonzero(mask2, as_tuple=True)
-        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.sen_1
-        tokens_masks[batch_idx, token_idx] = 1
-
-        mask3 = (tokens_masks == 3)
-        batch_idx, token_idx = torch.nonzero(mask3, as_tuple=True)
-        data[batch_idx, token_idx, :self.wavelength_bits_size] = self.alos
-        tokens_masks[batch_idx, token_idx] = 1
 
         tokens_masks = tokens_masks.to(bool)
         data[tokens_masks == 0] = 0

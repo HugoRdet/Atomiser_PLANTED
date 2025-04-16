@@ -435,9 +435,7 @@ class transformations_config_flair:
         
 
         if wave_encoding!=None:
-            print("bonsoir 1 ",wave_encoding.shape,"   ",central_wavelength_processing[0, 0, 0, 0, 0, :])
             central_wavelength_processing.copy_(wave_encoding)
-            print("bonsoir 2 ",wave_encoding.shape,"   ",central_wavelength_processing[0, 0, 0, 0, 0, :])
                
         value_processed=self.get_bvalue_processing(im_sen)
         
@@ -453,26 +451,18 @@ class transformations_config_flair:
 
 
         tokens=torch.cat([central_wavelength_processing.to(im_sen.device),
-                          #value_processed.to(im_sen.device),
-                          #band_post_proc.to(im_sen.device),
-                          #time_encoding.to(im_sen.device)         
+                          value_processed.to(im_sen.device),
+                          band_post_proc.to(im_sen.device),
+                          time_encoding.to(im_sen.device)         
                 ],dim=5)
         
         
 
         tokens=einops.rearrange(tokens,"b t h w c f ->b  (t h w c) f")
         token_masks=mask_sen
-        condition = (token_masks == 1)  # shape [b, t, h, w, c, f]
-        #if mode=="s1":
-        token_masks[..., 0, :][condition[..., 0, :]] = 2
-        token_masks[..., 1, :][condition[..., 1, :]] = 3
-        #elif mode=="alos":
-            #token_masks[token_masks==1]=3
         token_masks=einops.rearrange(mask_sen,"b t h w c -> b (t h w c)")
 
 
-        print(tokens[token_masks!=0].max())
-        print(tokens[token_masks!=0].min())
 
         
 
