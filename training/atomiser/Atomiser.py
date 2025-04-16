@@ -224,40 +224,57 @@ class Atomiser(nn.Module):
             L_masks.append(tokens_mask_s2)
             L_tokens.append(tokens_s2)
 
-            if torch.isnan(mask_s2).any():
-                print("[S2] NaN in tokens_s2")
+            print(L_tokens[-1].max())
+            print(L_tokens[-1].min())
+
+
+            print("[S2] NaN in tokens_s2")
         
         if self.config["dataset"]["L7"]:
             tokens_l7,tokens_mask_l7=self.get_tokens(img_l7,date_l7,mask_l7,mode="optique",modality="l7")
             L_masks.append(tokens_mask_l7)
             L_tokens.append(tokens_l7)
 
-            if torch.isnan(mask_l7).any():
-                print("[S2] NaN in tokens_l7")
+            print(L_tokens[-1].max())
+            print(L_tokens[-1].min())
+
+  
+            print("[S2] NaN in tokens_l7")
 
         if self.config["dataset"]["MODIS"]:
             tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
             L_masks.append(tokens_mask_mo)
             L_tokens.append(tokens_mo)
 
-            if torch.isnan(mask_mo).any():
-                print("[S2] NaN in tokens_mo")
+            print(L_tokens[-1].max())
+            print(L_tokens[-1].min())
+
+
+            print("[S2] NaN in tokens_mo")
 
         if self.config["dataset"]["S1"]:
             tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1")
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
-            if torch.isnan(mask_s1).any():
-                print("[S2] NaN in tokens_s1")
+            print(L_tokens[-1].max())
+            print(L_tokens[-1].min())
+
+     
+     
+            print("[S2] NaN in tokens_s1")
 
         if self.config["dataset"]["ALOS"]:
             tokens_al,tokens_mask_al=self.get_tokens(img_al,date_al,mask_al,mode="sar",modality="alos")
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
 
-            if torch.isnan(mask_al).any():
-                print("[S2] NaN in tokens_al")
+            print(L_tokens[-1].max())
+            print(L_tokens[-1].min())
+
+
+
+            print("[S2] NaN in tokens_al")
 
 
         tokens=torch.cat(L_tokens,dim=1)
@@ -290,8 +307,7 @@ class Atomiser(nn.Module):
         tokens_masks = tokens_masks.to(bool)
         data[tokens_masks == 0] = 0
 
-        print("Data min:", data.min().item())
-        print("Data max:", data.max().item())
+  
 
 
 
