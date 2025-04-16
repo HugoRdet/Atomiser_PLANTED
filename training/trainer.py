@@ -35,7 +35,7 @@ class Model(pl.LightningModule):
         self.num_classes = config["trainer"]["num_classes"]
         self.logging_step = config["trainer"]["logging_step"]
         self.actual_epoch = 0
-        weights_loss= torch.log(1+self.get_label_weights().to(torch.float32))
+        weights_loss= torch.sqrt(1+self.get_label_weights().to(torch.float32))
 
         # Ensure same weights on all GPUs
         if torch.distributed.is_initialized():
