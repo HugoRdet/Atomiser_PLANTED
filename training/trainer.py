@@ -58,21 +58,9 @@ class Model(pl.LightningModule):
         self.metric_Acc_validation = torchmetrics.Accuracy(task="multiclass", num_classes=40,average="micro")
         self.metric_Acc_test = torchmetrics.Accuracy(task="multiclass", num_classes=40,average="micro")
 
-        self.metric_F1_train = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_validation = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_test = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-
-        self.metric_F1_train_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_validation_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_test_freq = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-
-        self.metric_F1_train_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_validation_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_test_com = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-
-        self.metric_F1_train_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_validation_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
-        self.metric_F1_test_rare = torchmetrics.F1Score(task="multiclass", num_classes=40,average="macro")
+        self.metric_F1_train_per_class = torchmetrics.classification.MulticlassF1Score(num_classes=40, average="none")
+        self.metric_F1_val_per_class = torchmetrics.classification.MulticlassF1Score(num_classes=40, average="none")
+        self.metric_F1_test_per_class = torchmetrics.classification.MulticlassF1Score(num_classes=40, average="none")
 
         
 
@@ -104,18 +92,51 @@ class Model(pl.LightningModule):
             )
 
 
+        self.common_classes,self.frequent_classes,self.rare_classes=self.get_label_frequencies()
+
+      
+        
+
+
   
         self.loss = nn.CrossEntropyLoss(weight=self.weights_loss)
         self.lr = float(config["trainer"]["lr"])
         self.max_tokens=self.config["trainer"]["max_tokens"]
 
+    def get_label_frequencies(self):
+     
+
+        ids_common=[]
+        ids_rare=[]
+        ids_frequent=[]
+
+        for label in self.labels:
+           
+            if self.labels[label]["Frequency"]=="frequent":
+                ids_frequent.append(int(self.labels[label]["id"]))
+            
+            if self.labels[label]["Frequency"]=="common":
+                ids_common.append(int(self.labels[label]["id"]))
+
+            if self.labels[label]["Frequency"]=="rare":
+                ids_rare.append(int(self.labels[label]["id"]))
+
+        ids_common=torch.from_numpy(np.array(ids_common))
+        ids_rare=torch.from_numpy(np.array(ids_rare))
+        ids_frequent=torch.from_numpy(np.array(ids_frequent))
+        return ids_common,ids_frequent,ids_rare
+
     def get_label_weights(self):
         weights=dict()
+
+    
 
         cpt_count=0
         for label in self.labels:
             weights[int(self.labels[label]["id"])]=int(self.labels[label]["count"])
             cpt_count+=int(self.labels[label]["count"])
+
+
 
         res=[]
         for w in range(len(self.labels.keys())):
@@ -151,14 +172,7 @@ class Model(pl.LightningModule):
         
 
         self.metric_Acc_train.update(y_hat,labels)
-        self.metric_F1_train.update(y_hat,labels)
-
-        if y_hat[frequency==0].shape[0]!=0:
-            self.metric_F1_train_freq.update(y_hat[frequency==0],labels[frequency==0])
-        if y_hat[frequency==1].shape[0]!=0:
-            self.metric_F1_train_com.update(y_hat[frequency==1],labels[frequency==1])
-        if y_hat[frequency==2].shape[0]!=0:
-            self.metric_F1_train_rare.update(y_hat[frequency==2],labels[frequency==2])
+        self.metric_F1_train_per_class.update(y_hat, labels)
 
 
         self.log("train_loss", loss, on_step=True, on_epoch=False, logger=True, sync_dist=False)
@@ -178,25 +192,22 @@ class Model(pl.LightningModule):
         
 
         Acc=self.metric_Acc_train.compute()
-        F1_score=self.metric_F1_train.compute()
-        F1_freq=self.metric_F1_train_freq.compute()
-        F1_com=self.metric_F1_train_com.compute()
-        F1_rare=self.metric_F1_train_rare.compute()
+        f1s = self.metric_F1_train_per_class.compute()
+        f1_freq = f1s[self.frequent_classes].mean()
+        f1_com = f1s[self.common_classes].mean()
+        f1_rare = f1s[self.rare_classes].mean()
         
         #self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
         
 
         self.log("train_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("train_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("train_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("train_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("train_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1", f1s.mean(), on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_freq", f1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_com", f1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("train_F1_rare", f1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.metric_Acc_train.reset()
-        self.metric_F1_train.reset()
-        self.metric_F1_train_freq.reset()
-        self.metric_F1_train_com.reset()
-        self.metric_F1_train_rare.reset()
+        self.metric_F1_train_per_class.reset()
 
     
     
@@ -235,13 +246,7 @@ class Model(pl.LightningModule):
         
 
         self.metric_Acc_validation.update(y_hat,labels)
-        self.metric_F1_validation.update(y_hat,labels)
-        if y_hat[frequency==0].shape[0]!=0:
-            self.metric_F1_validation_freq.update(y_hat[frequency==0],labels[frequency==0])
-        if y_hat[frequency==1].shape[0]!=0:
-            self.metric_F1_validation_com.update(y_hat[frequency==1],labels[frequency==1])
-        if y_hat[frequency==2].shape[0]!=0:
-            self.metric_F1_validation_rare.update(y_hat[frequency==2],labels[frequency==2])
+        self.metric_F1_val_per_class.update(y_hat, labels)
 
 
         self.log("val_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=False)
@@ -255,25 +260,22 @@ class Model(pl.LightningModule):
 
 
         Acc=self.metric_Acc_validation.compute()
-        F1_score=self.metric_F1_validation.compute()
-        F1_freq=self.metric_F1_validation_freq.compute()
-        F1_com=self.metric_F1_validation_com.compute()
-        F1_rare=self.metric_F1_validation_rare.compute()
+        f1s = self.metric_F1_val_per_class.compute()
+        f1_freq = f1s[self.frequent_classes].mean()
+        f1_com = f1s[self.common_classes].mean()
+        f1_rare = f1s[self.rare_classes].mean()
         
         self.log("val_loss", loss, on_step=False, on_epoch=True, logger=True, sync_dist=True)
         self.log("log val_loss", torch.log(loss), on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.log("val_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("val_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1", f1s.mean(), on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_freq", f1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_com", f1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("val_F1_rare", f1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.metric_Acc_validation.reset()
-        self.metric_F1_validation.reset()
-        self.metric_F1_validation_freq.reset()
-        self.metric_F1_validation_com.reset()
-        self.metric_F1_validation_rare.reset()
+        self.metric_F1_val_per_class.reset()
         
         
             
@@ -294,14 +296,7 @@ class Model(pl.LightningModule):
         
 
         self.metric_Acc_test.update(y_hat,labels)
-        self.metric_F1_test.update(y_hat,labels)
-
-        if y_hat[frequency==0].shape[0]!=0:
-            self.metric_F1_test_freq.update(y_hat[frequency==0],labels[frequency==0])
-        if y_hat[frequency==1].shape[0]!=0:
-            self.metric_F1_test_com.update(y_hat[frequency==1],labels[frequency==1])
-        if y_hat[frequency==2].shape[0]!=0:
-            self.metric_F1_test_rare.update(y_hat[frequency==2],labels[frequency==2])
+        self.metric_F1_test_per_class.update(y_hat, labels)
 
 
         
@@ -313,24 +308,21 @@ class Model(pl.LightningModule):
   
 
         Acc=self.metric_Acc_test.compute()
-        F1_score=self.metric_F1_test.compute()
-        F1_freq=self.metric_F1_test_freq.compute()
-        F1_com=self.metric_F1_test_com.compute()
-        F1_rare=self.metric_F1_test_rare.compute()
+        f1s = self.metric_F1_test_per_class.compute()
+        f1_freq = f1s[self.frequent_classes].mean()
+        f1_com = f1s[self.common_classes].mean()
+        f1_rare = f1s[self.rare_classes].mean()
         
         
 
         self.log("test_Acc", Acc, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("test_F1", F1_score, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("test_F1_freq", F1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("test_F1_com", F1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
-        self.log("test_F1_rare", F1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1", f1s.mean(), on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_freq", f1_freq, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_com", f1_com, on_step=False, on_epoch=True, logger=True, sync_dist=True)
+        self.log("test_F1_rare", f1_rare, on_step=False, on_epoch=True, logger=True, sync_dist=True)
 
         self.metric_Acc_test.reset()
-        self.metric_F1_test.reset()
-        self.metric_F1_test_freq.reset()
-        self.metric_F1_test_com.reset()
-        self.metric_F1_test_rare.reset()
+        self.metric_F1_test_per_class.reset()
 
 
         
