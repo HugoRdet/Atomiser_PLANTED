@@ -99,7 +99,7 @@ class Model(pl.LightningModule):
 
 
   
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.CrossEntropyLoss(weight=self.weights_loss)
         self.lr = float(config["trainer"]["lr"])
         self.max_tokens=self.config["trainer"]["max_tokens"]
 
