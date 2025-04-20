@@ -148,9 +148,23 @@ class Atomiser(nn.Module):
         get_latent_attn = lambda: PreNorm(latent_dim, Attention(latent_dim, heads = latent_heads, dim_head = latent_dim_head, dropout = attn_dropout))
         get_latent_ff = lambda: PreNorm(latent_dim, FeedForward(latent_dim, dropout = ff_dropout))
         get_rev_cross_attn = lambda: ReverseCrossAttentionBlock(input_dim, latent_dim, heads=cross_heads, dim_head=cross_dim_head, dropout=attn_dropout)
+        get_input_attn = lambda: PreNorm(input_dim, LinearAttention(input_dim, heads=4, dim_head=64, dropout=attn_dropout))
+        get_rev_ff = lambda: PreNorm(input_dim, FeedForward(input_dim, dropout=ff_dropout))
 
-        get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff,get_rev_cross_attn = map(cache_fn, (get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff,get_rev_cross_attn))
 
+
+        get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff, get_rev_cross_attn, get_input_attn, get_rev_ff = map(
+            cache_fn, (
+                get_cross_attn,
+                get_cross_ff,
+                get_latent_attn,
+                get_latent_ff,
+                get_rev_cross_attn,
+                get_input_attn,
+                get_rev_ff
+            )
+        )
+        
         self.layers = nn.ModuleList([])
         #weights are shared except for the first blocs of cross attention / latent attention
         for i in range(depth):
@@ -168,7 +182,9 @@ class Atomiser(nn.Module):
             self.layers.append(nn.ModuleList([
                 get_cross_attn(**cache_args),
                 get_cross_ff(**cache_args),
-                get_rev_cross_attn(**cache_args), 
+                get_rev_cross_attn(**cache_args),
+                get_input_attn(**cache_args),
+                get_rev_ff(**cache_args),
                 self_attns
             ]))
 
@@ -296,7 +312,8 @@ class Atomiser(nn.Module):
 
 
         # Proceed with the rest of the forward pass
-        for cross_attn, cross_ff, rev_cross_attn, self_attns in self.layers:
+        for cross_attn, cross_ff, rev_cross_attn, input_attn, rev_ff, self_attns in self.layers:
+
             masked_data = data.clone()
             masked_attention_mask = tokens_masks.clone()
 
@@ -307,6 +324,8 @@ class Atomiser(nn.Module):
             x = cross_ff(x) + x
 
             data = rev_cross_attn(data, latents=x)
+            data = input_attn(data) + data
+            data = rev_ff(data) + data
 
             for self_attn, self_ff in self_attns:
                 x = self_attn(x) + x
