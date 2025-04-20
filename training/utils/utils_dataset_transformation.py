@@ -187,48 +187,49 @@ class transformations_config_flair:
         return encoding
     
 
-    def apply_temporal_spatial_transforms(self,img, mask):
+    def apply_temporal_spatial_transforms(self, img, mask):
         """
         Apply the same random rotation and flip to all channels and time steps 
-        of an image and its mask. Both must be of shape [T, H, W, C].
+        of a batch of images and masks. Each must be of shape [B, T, H, W, C].
 
         Args:
-            img (torch.Tensor): Input image tensor of shape [T, H, W, C]
-            mask (torch.Tensor): Input mask tensor of shape [T, H, W, C]
+            img (torch.Tensor): Batch of input images of shape [B, T, H, W, C]
+            mask (torch.Tensor): Batch of corresponding masks of shape [B, T, H, W, C]
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: Transformed image and mask tensors
         """
-
-        T, H, W, C = img.shape
+        B, T, H, W, C = img.shape
         img_transformed = img.clone()
         mask_transformed = mask.clone()
 
-        # Choose a rotation angle (0, 90, 180, or 270 degrees)
-        angles = [0, 90, 180, 270]
-        angle = random.choice(angles)
+        # Apply the same transformation to each item in the batch independently
+        for b in range(B):
+            # Choose a rotation angle (0, 90, 180, or 270 degrees)
+            angles = [0, 90, 180, 270]
+            angle = random.choice(angles)
 
-        # Apply rotation
-        for t in range(T):
-            for c in range(C):
-                img_slice = img_transformed[t, :, :, c]
-                mask_slice = mask_transformed[t, :, :, c]
+            # Rotate each [T, H, W, C] entry in the batch
+            for t in range(T):
+                for c in range(C):
+                    img_slice = img_transformed[b, t, :, :, c]
+                    mask_slice = mask_transformed[b, t, :, :, c]
 
-                img_rot = rotate(img_slice.unsqueeze(0), angle).squeeze(0)
-                mask_rot = rotate(mask_slice.unsqueeze(0), angle).squeeze(0)
+                    img_rot = rotate(img_slice.unsqueeze(0), angle).squeeze(0)
+                    mask_rot = rotate(mask_slice.unsqueeze(0), angle).squeeze(0)
 
-                img_transformed[t, :, :, c] = img_rot
-                mask_transformed[t, :, :, c] = mask_rot
+                    img_transformed[b, t, :, :, c] = img_rot
+                    mask_transformed[b, t, :, :, c] = mask_rot
 
-        # Apply horizontal flip with 50% chance
-        if random.random() > 0.5:
-            img_transformed = img_transformed.flip(2)   # Flip width (W)
-            mask_transformed = mask_transformed.flip(2)
+            # Apply horizontal flip with 50% chance
+            if random.random() > 0.5:
+                img_transformed[b] = img_transformed[b].flip(2)  # Flip width
+                mask_transformed[b] = mask_transformed[b].flip(2)
 
-        # Apply vertical flip with 50% chance
-        if random.random() > 0.5:
-            img_transformed = img_transformed.flip(1)   # Flip height (H)
-            mask_transformed = mask_transformed.flip(1)
+            # Apply vertical flip with 50% chance
+            if random.random() > 0.5:
+                img_transformed[b] = img_transformed[b].flip(1)  # Flip height
+                mask_transformed[b] = mask_transformed[b].flip(1)
 
         return img_transformed, mask_transformed
 
