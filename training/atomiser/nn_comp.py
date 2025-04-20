@@ -120,3 +120,13 @@ class LatentAttentionPooling(nn.Module):
 
     
 
+class ReverseCrossAttentionBlock(nn.Module):
+    def __init__(self, input_dim, latent_dim, heads=1, dim_head=64, dropout=0.):
+        super().__init__()
+        self.attn = PreNorm(input_dim, Attention(input_dim, latent_dim, heads=heads, dim_head=dim_head, dropout=dropout), context_dim=latent_dim)
+        self.ff = PreNorm(input_dim, FeedForward(input_dim, dropout=dropout))
+
+    def forward(self, tokens, latents):
+        tokens = self.attn(tokens, context=latents) + tokens
+        tokens = self.ff(tokens) + tokens
+        return tokens

@@ -124,11 +124,11 @@ class Atomiser(nn.Module):
         
         
         # Initialize your parameter
-        self.sen_1 = nn.Parameter(torch.empty(shape_input_wavelength))
-        nn.init.trunc_normal_(self.sen_1, mean=0.0, std=0.02, a=-2.0, b=2.0)
+        self.VV = nn.Parameter(torch.empty(shape_input_wavelength))
+        nn.init.trunc_normal_(self.VV, mean=0.0, std=0.02, a=-2.0, b=2.0)
 
-        self.alos = nn.Parameter(torch.empty(shape_input_wavelength))
-        nn.init.trunc_normal_(self.alos, mean=0.0, std=0.02, a=-2.0, b=2.0)
+        self.VH = nn.Parameter(torch.empty(shape_input_wavelength))
+        nn.init.trunc_normal_(self.VH, mean=0.0, std=0.02, a=-2.0, b=2.0)
 
         
         
@@ -147,8 +147,9 @@ class Atomiser(nn.Module):
         get_cross_ff = lambda: PreNorm(latent_dim, FeedForward(latent_dim, dropout = ff_dropout))
         get_latent_attn = lambda: PreNorm(latent_dim, Attention(latent_dim, heads = latent_heads, dim_head = latent_dim_head, dropout = attn_dropout))
         get_latent_ff = lambda: PreNorm(latent_dim, FeedForward(latent_dim, dropout = ff_dropout))
+        get_rev_cross_attn = lambda: ReverseCrossAttentionBlock(input_dim, latent_dim, heads=cross_heads, dim_head=cross_dim_head, dropout=attn_dropout)
 
-        get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff = map(cache_fn, (get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff))
+        get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff,get_rev_cross_attn = map(cache_fn, (get_cross_attn, get_cross_ff, get_latent_attn, get_latent_ff,get_rev_cross_attn))
 
         self.layers = nn.ModuleList([])
         #weights are shared except for the first blocs of cross attention / latent attention
@@ -167,6 +168,7 @@ class Atomiser(nn.Module):
             self.layers.append(nn.ModuleList([
                 get_cross_attn(**cache_args),
                 get_cross_ff(**cache_args),
+                get_rev_cross_attn(**cache_args), 
                 self_attns
             ]))
 
@@ -183,17 +185,17 @@ class Atomiser(nn.Module):
 
      
 
-        self.to_logits = nn.Sequential(
-            Reduce('b n d -> b d', 'mean'),
-            nn.LayerNorm(latent_dim),
-            nn.Linear(latent_dim, num_classes)
-        ) if final_classifier_head else nn.Identity()
-
         #self.to_logits = nn.Sequential(
-        #    LatentAttentionPooling(latent_dim, heads=4, dim_head=64, dropout=0.1),
+        #    Reduce('b n d -> b d', 'mean'),
         #    nn.LayerNorm(latent_dim),
         #    nn.Linear(latent_dim, num_classes)
         #) if final_classifier_head else nn.Identity()
+
+        self.to_logits = nn.Sequential(
+            LatentAttentionPooling(latent_dim, heads=4, dim_head=64, dropout=0.1),
+            nn.LayerNorm(latent_dim),
+            nn.Linear(latent_dim, num_classes)
+        ) if final_classifier_head else nn.Identity()
 
        
 
@@ -254,14 +256,14 @@ class Atomiser(nn.Module):
 
 
         if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=self.sen_1)
+            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
 
 
         if self.config["dataset"]["ALOS"]:
             tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
-            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=self.alos)
+            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH))
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
       
@@ -294,7 +296,7 @@ class Atomiser(nn.Module):
 
 
         # Proceed with the rest of the forward pass
-        for cross_attn, cross_ff, self_attns in self.layers:
+        for cross_attn, cross_ff, rev_cross_attn, self_attns in self.layers:
             masked_data = data.clone()
             masked_attention_mask = tokens_masks.clone()
 
@@ -303,6 +305,8 @@ class Atomiser(nn.Module):
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
+
+            data = rev_cross_attn(data, latents=x)
 
             for self_attn, self_ff in self_attns:
                 x = self_attn(x) + x

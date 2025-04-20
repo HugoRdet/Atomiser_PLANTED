@@ -480,9 +480,11 @@ class transformations_config_flair:
         central_wavelength_processing=torch.empty(target_shape_w)
         
         
-
+        
         if wave_encoding!=None:
-            central_wavelength_processing.copy_(wave_encoding)
+            VV,VH=wave_encoding
+            central_wavelength_processing[:,:,:,:,0].copy_(VV)
+            central_wavelength_processing[:,:,:,:,1].copy_(VH)
                
         value_processed=self.get_bvalue_processing(im_sen)
         
