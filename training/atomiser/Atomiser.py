@@ -181,7 +181,6 @@ class Atomiser(nn.Module):
                 get_cross_attn(**cache_args),
                 get_cross_ff(**cache_args),
                 get_rev_cross_attn(**cache_args),
-                get_input_attn(**cache_args),
                 get_rev_ff(**cache_args),
                 self_attns
             ]))
