@@ -101,7 +101,7 @@ early_stop_callback = EarlyStopping(
 )
 
 
-accumulator = GradientAccumulationScheduler(scheduling={0: 20, 1:10 ,2: 1})
+accumulator = GradientAccumulationScheduler(scheduling={0: 20})
 
 # Trainer
 trainer = Trainer(

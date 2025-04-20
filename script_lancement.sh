@@ -1,8 +1,12 @@
-cd ./../Per-Sent-1-2
+#!/bin/bash
+source /etc/profile.d/lmod.sh
 module load conda
+
+
+
+## === Then load the module and activate your env ===
 conda activate venv
 
-cd ./../PLANTED
 
 sh TrainEval.sh test_Atos_lancement_3 config_test-Atomiser_Atos.yaml tiny
 
