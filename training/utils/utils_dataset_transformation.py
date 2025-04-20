@@ -199,6 +199,7 @@ class transformations_config_flair:
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: Transformed image and mask tensors
         """
+        return img,mask
         B, T, H, W, C = img.shape
         img_transformed = img.clone()
         mask_transformed = mask.clone()

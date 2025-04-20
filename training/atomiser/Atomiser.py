@@ -183,17 +183,17 @@ class Atomiser(nn.Module):
 
      
 
-        self.to_logits = nn.Sequential(
-            Reduce('b n d -> b d', 'mean'),
-            nn.LayerNorm(latent_dim),
-            nn.Linear(latent_dim, num_classes)
-        ) if final_classifier_head else nn.Identity()
-
         #self.to_logits = nn.Sequential(
-        #    LatentAttentionPooling(latent_dim, heads=4, dim_head=64, dropout=0.1),
+        #    Reduce('b n d -> b d', 'mean'),
         #    nn.LayerNorm(latent_dim),
         #    nn.Linear(latent_dim, num_classes)
         #) if final_classifier_head else nn.Identity()
+
+        self.to_logits = nn.Sequential(
+            LatentAttentionPooling(latent_dim, heads=4, dim_head=64, dropout=0.1),
+            nn.LayerNorm(latent_dim),
+            nn.Linear(latent_dim, num_classes)
+        ) if final_classifier_head else nn.Identity()
 
        
 
