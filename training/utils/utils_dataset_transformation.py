@@ -7,7 +7,8 @@ import einops
 import datetime
 import numpy as np
 import datetime
-
+from torchvision.transforms.functional import rotate, hflip, vflip
+import random
 
 def fourier_encode(x, max_freq, num_bands = 4):
     x = x.unsqueeze(-1)
@@ -184,6 +185,52 @@ class transformations_config_flair:
 
         encoding=einops.repeat(encoding,"b t h w c d -> (B b) (T t) h w c d",B=B_size,T=T_size)
         return encoding
+    
+
+    def apply_temporal_spatial_transforms(self,img, mask):
+        """
+        Apply the same random rotation and flip to all channels and time steps 
+        of an image and its mask. Both must be of shape [T, H, W, C].
+
+        Args:
+            img (torch.Tensor): Input image tensor of shape [T, H, W, C]
+            mask (torch.Tensor): Input mask tensor of shape [T, H, W, C]
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Transformed image and mask tensors
+        """
+
+        T, H, W, C = img.shape
+        img_transformed = img.clone()
+        mask_transformed = mask.clone()
+
+        # Choose a rotation angle (0, 90, 180, or 270 degrees)
+        angles = [0, 90, 180, 270]
+        angle = random.choice(angles)
+
+        # Apply rotation
+        for t in range(T):
+            for c in range(C):
+                img_slice = img_transformed[t, :, :, c]
+                mask_slice = mask_transformed[t, :, :, c]
+
+                img_rot = rotate(img_slice.unsqueeze(0), angle).squeeze(0)
+                mask_rot = rotate(mask_slice.unsqueeze(0), angle).squeeze(0)
+
+                img_transformed[t, :, :, c] = img_rot
+                mask_transformed[t, :, :, c] = mask_rot
+
+        # Apply horizontal flip with 50% chance
+        if random.random() > 0.5:
+            img_transformed = img_transformed.flip(2)   # Flip width (W)
+            mask_transformed = mask_transformed.flip(2)
+
+        # Apply vertical flip with 50% chance
+        if random.random() > 0.5:
+            img_transformed = img_transformed.flip(1)   # Flip height (H)
+            mask_transformed = mask_transformed.flip(1)
+
+        return img_transformed, mask_transformed
 
 
 

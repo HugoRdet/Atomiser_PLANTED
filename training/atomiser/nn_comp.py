@@ -101,3 +101,22 @@ class Attention(nn.Module):
         return self.to_out(out)
     
 
+
+class LatentAttentionPooling(nn.Module):
+    def __init__(self, dim, heads=4, dim_head=64, dropout=0.):
+        super().__init__()
+        self.query = nn.Parameter(torch.randn(1, 1, dim))
+        self.attn = Attention(query_dim=dim, context_dim=dim, heads=heads, dim_head=dim_head, dropout=dropout)
+
+    def forward(self, x):
+        """
+        x: (batch, num_latents, dim)
+        returns: (batch, dim)
+        """
+        b = x.size(0)
+        q = repeat(self.query, '1 1 d -> b 1 d', b=b)
+        attended = self.attn(q, context=x)  # (b, 1, dim)
+        return attended.squeeze(1)  # -> (b, dim)
+
+    
+
