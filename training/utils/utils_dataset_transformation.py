@@ -35,6 +35,7 @@ class transformations_config_flair:
     
 
     def __init__(self,bands_yaml,config):
+        super().__init__()
       
         self.bands_yaml = read_yaml(bands_yaml)
         self.config = config
@@ -126,12 +127,12 @@ class transformations_config_flair:
         if positional_scaling_l is None:
             positional_scaling_l = torch.ones(img_shape[-1]) * 2.0
         for scale in positional_scaling_l:
-            axis = [torch.linspace(-scale/2, scale/2, steps=size, device='cpu') for _ in range(2)]
+            axis = [torch.linspace(-scale/2, scale/2, steps=size, device=img_shape.device) for _ in range(2)]
             grid = torch.stack(torch.meshgrid(*axis, indexing='ij'), dim=-1)
             pe = fourier_encode(grid, max_freq=max_freq, num_bands=num_bands)
-            pe = einops.rearrange(pe, 'h w c f -> h w (c f)').unsqueeze(0)  # shape [1,h,w,f]
+            pe = einops.rearrange(pe, 'h w c f -> h w (c f)').unsqueeze(0)
             L_pos.append(pe)
-        return torch.cat(L_pos, dim=0)  # [t,h,w,f]
+        return torch.cat(L_pos, dim=0)
     
     
     def get_positional_processing(self, img_shape, resolution, T_size, B_size, modality, device):
@@ -236,17 +237,14 @@ class transformations_config_flair:
     def wavelength_processing(self, device, wavelength, bandwidth, img_size, B_size, T_size, modality="s2"):
         enc_mode = self.config["Atomiser"]["wavelength_encoding"]
         if enc_mode != "GAUSSIANS":
-            # Fallback for NATURAL or FF
             if enc_mode == "NATURAL":
                 return torch.tensor(wavelength, device=device).view(1,1,1,1,-1,1).expand(B_size, T_size, img_size, img_size, -1, 1)
             elif enc_mode == "FF":
-                # Fourier encode each scalar band index
                 vals = torch.tensor(wavelength, device=device)
                 ff = fourier_encode(vals, self.config["Atomiser"]["wavelength_max_freq"], self.config["Atomiser"]["wavelength_num_freq_bands"])
                 ffs = ff.view(1,1,1,1,ff.shape[0], ff.shape[1])
                 return ffs.expand(B_size, T_size, img_size, img_size, -1, -1)
 
-        # Gaussian case
         buf_name = f'wavelength_cache_{modality}'
         buf = getattr(self, buf_name)
         if buf is None:
@@ -256,6 +254,7 @@ class transformations_config_flair:
             setattr(self, buf_name, encoded)
             buf = encoded
         return einops.repeat(buf, 'b t h w c d -> (B b) t h w c d', B=B_size)
+
     
 
     def time_processing(self,time_stamp,img_size=-1):
