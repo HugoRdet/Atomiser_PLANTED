@@ -435,24 +435,18 @@ class transformations_config_flair(nn.Module):
         B_size, T_size, H, W, C = im_sen.shape
         img_size = H
 
-        # =========== TOTAL TIMER ===========
-        torch.cuda.synchronize()
-        t_total_start = time.time()
 
         # 1) Time encoding
-        torch.cuda.synchronize()
-        t0 = time.time()
+
         time_encoding = self.time_encoding(dates_sen, img_size).unsqueeze(-2)
         c1 = tmp_bandwidth.shape[0]
         time_encoding = time_encoding.expand(
             B_size, T_size, H, W, c1, -1
         )
-        torch.cuda.synchronize()
-        t1 = time.time()
+
 
         # 2) Wavelength encoding
-        torch.cuda.synchronize()
-        t2 = time.time()
+
         central_wavelength_processing = self.wavelength_processing(
             im_sen.device,
             tmp_central_wavelength,
@@ -462,28 +456,15 @@ class transformations_config_flair(nn.Module):
             T_size,
             modality=mode
         )
-        torch.cuda.synchronize()
-        t3 = time.time()
 
         # 3) Band‑value encoding
-        torch.cuda.synchronize()
-        t4 = time.time()
         value_processed = self.get_bvalue_processing(im_sen)
-        torch.cuda.synchronize()
-        t5 = time.time()
 
         # 4) Positional encoding
-        torch.cuda.synchronize()
-        t6 = time.time()
         band_post_proc = self.get_positional_processing(
             im_sen.shape, res, T_size, B_size, mode, im_sen.device
         )
-        torch.cuda.synchronize()
-        t7 = time.time()
-
-        # 5) Concat + rearrange
-        torch.cuda.synchronize()
-        t8 = time.time()
+     
 
     
         tokens = torch.cat([
@@ -494,16 +475,8 @@ class transformations_config_flair(nn.Module):
         ], dim=5)
         tokens = einops.rearrange(tokens, "b t h w c f -> b (t h w c) f")
         token_masks = einops.rearrange(mask_sen, "b t h w c -> b (t h w c)")
-        torch.cuda.synchronize()
-        t9 = time.time()
 
-        # =========== PRINT BREAKDOWN ===========
-        print(f"[apply_optique] total {(t9-t_total_start):.3f}s | "
-            f"time_enc {(t1-t0):.3f}s | "
-            f"wl_enc {(t3-t2):.3f}s | "
-            f"bv_enc {(t5-t4):.3f}s | "
-            f"pos_enc {(t7-t6):.3f}s | "
-            f"concat {(t9-t8):.3f}s")
+
 
         return tokens, token_masks
 
