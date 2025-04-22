@@ -487,10 +487,10 @@ class transformations_config_flair(nn.Module):
 
     
         tokens = torch.cat([
-            central_wavelength_processing.to(im_sen.device),
-            value_processed.to(im_sen.device),
-            band_post_proc.to(im_sen.device),
-            time_encoding.to(im_sen.device)
+            central_wavelength_processing,
+            value_processed,
+            band_post_proc,
+            time_encoding
         ], dim=5)
         tokens = einops.rearrange(tokens, "b t h w c f -> b (t h w c) f")
         token_masks = einops.rearrange(mask_sen, "b t h w c -> b (t h w c)")
