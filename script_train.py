@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import einops as einops
 from einops import rearrange, repeat
 from einops.layers.torch import Reduce
-
+from pytorch_lightning.plugins import DDPPlugin
 import matplotlib.pyplot as plt
 
 from configilm import util
@@ -107,6 +107,7 @@ accumulator = GradientAccumulationScheduler(scheduling={0: 20})
 trainer = Trainer(
     use_distributed_sampler=False,
     strategy="ddp",
+    plugins=[DDPPlugin(bucket_cap_mb=1024)],
     devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
@@ -116,7 +117,6 @@ trainer = Trainer(
     default_root_dir="./checkpoints/",
     val_check_interval=0.3,
     precision="bf16",
-    ddp_bucket_cap_mb=1024
 )
 
 
