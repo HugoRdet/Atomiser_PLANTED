@@ -30,7 +30,7 @@ def cache_fn(f):
     return cached_fn
 
 
-def masking(tokens,attention_mask,percent):
+def pruning(tokens,attention_mask,percent):
     
 
     masked_tokens=int(tokens.shape[1]*(percent/100.))
@@ -38,7 +38,7 @@ def masking(tokens,attention_mask,percent):
     idx = torch.randperm(tokens.size(1))
     tokens=tokens[:,idx]
     attention_mask=attention_mask[:,idx]
-    return tokens[:,masked_tokens:],attention_mask[:,masked_tokens:]
+    return tokens[:,masked_tokens:],attention_mask[:,masked_tokens:],idx
 
 
 
@@ -315,13 +315,16 @@ class Atomiser(nn.Module):
             masked_attention_mask = tokens_masks.clone()
 
             if training and self.masking > 0:
-                masked_data, masked_attention_mask = masking(masked_data, masked_attention_mask, self.masking)
+                masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask, self.masking)
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
 
-            data = rev_cross_attn(data, latents=x)
-            data = rev_ff(data) + data
+
+
+            masked_data = rev_cross_attn(masked_data, latents=x)
+            masked_data = rev_ff(masked_data) + masked_data
+            data[:,idxs_masking]=masked_data
 
             for self_attn, self_ff in self_attns:
                 x = self_attn(x) + x
