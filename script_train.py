@@ -116,6 +116,7 @@ trainer = Trainer(
     default_root_dir="./checkpoints/",
     val_check_interval=0.3,
     precision="bf16",
+    ddp_bucket_cap_mb=1024
 )
 
 
