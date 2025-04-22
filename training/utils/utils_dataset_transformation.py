@@ -259,8 +259,12 @@ class transformations_config_flair(nn.Module):
         
         tmp_encoding=fourier_encode(torch.Tensor(scalar), max_freq=max_freq, num_bands = num_bands) # B T C
         
-        tmp_encoding=tmp_encoding.unsqueeze(2).unsqueeze(2)
-        tmp_encoding=einops.repeat(tmp_encoding," B T h w C ->B T (s1 h) (s2 w) C",s1=size,s2=size)
+        tmp_encoding = tmp_encoding.unsqueeze(2).unsqueeze(2)  # [B, T, 1, 1, C]
+        tmp_encoding = tmp_encoding.expand(-1,    # keep B
+                                   -1,    # keep T
+                                    size, # H = size
+                                    size, # W = size
+                                   -1)    # keep C
   
         return tmp_encoding
     
@@ -328,7 +332,17 @@ class transformations_config_flair(nn.Module):
         encoded = getattr(self, id_cache)
         if  encoded is not None :
 
-            encoded=einops.repeat(encoded,'b t h w c d  -> (B b) t h w c d ',B=B_size)
+            #encoded=einops.repeat(encoded,'b t h w c d  -> (B b) t h w c d ',B=B_size)
+
+            encoded = encoded.expand(
+                B_size,               # expand the batch‐axis
+                encoded.size(1),      # T (time) stays the same
+                encoded.size(2),      # H
+                encoded.size(3),      # W
+                encoded.size(4),      # C
+                encoded.size(5)       # D
+            )
+
             return encoded.to(device)
         
    
@@ -427,7 +441,17 @@ class transformations_config_flair(nn.Module):
         
 
         time_encoding=self.time_encoding(dates_sen,img_size).unsqueeze(-2)
-        time_encoding=einops.repeat(time_encoding,"b t h w c e -> b t h w (c1 c) e ",c1=tmp_bandwidth.shape[0])
+        #time_encoding=einops.repeat(time_encoding,"b t h w c e -> b t h w (c1 c) e ",c1=tmp_bandwidth.shape[0])
+
+        c1 = tmp_bandwidth.shape[0]
+        time_encoding = time_encoding.expand(
+            -1,   # B stays the same
+            -1,   # T stays the same
+            -1,   # H stays the same
+            -1,   # W stays the same
+            c1,  # expand the singleton c‐dimension
+            -1    # E stays the same
+        )  # now [B, T, H, W, c1, E]
 
         T_size=im_sen.shape[1]
         B_size=im_sen.shape[0]
@@ -485,7 +509,17 @@ class transformations_config_flair(nn.Module):
         img_size=im_sen.shape[3]
         
         time_encoding=self.time_encoding(dates_sen,img_size).unsqueeze(-2)
-        time_encoding=einops.repeat(time_encoding,"b t h w c e -> b t h w (c1 c) e ",c1=im_sen.shape[-1])
+        #time_encoding=einops.repeat(time_encoding,"b t h w c e -> b t h w (c1 c) e ",c1=im_sen.shape[-1])
+
+        c1 = im_sen.shape[-1]
+        time_encoding = time_encoding.expand(
+            -1,   # B stays the same
+            -1,   # T stays the same
+            -1,   # H stays the same
+            -1,   # W stays the same
+            c1,  # expand the singleton c‐dimension
+            -1    # E stays the same
+        )  # now [B, T, H, W, c1, E]
 
         T_size=im_sen.shape[1]
         B_size=im_sen.shape[0]
