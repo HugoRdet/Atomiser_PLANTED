@@ -610,6 +610,7 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
             worker_init_fn=_init_worker,
+            prefetch_factor=2,
         )
 
     def val_dataloader(self):
@@ -621,6 +622,7 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
             worker_init_fn=_init_worker,
+            prefetch_factor=2,
         )
 
     def test_dataloader(self):
@@ -633,4 +635,5 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
             worker_init_fn=_init_worker,
+            prefetch_factor=2,
         )
