@@ -345,7 +345,7 @@ class Atomiser(nn.Module):
 
 
     def forward(self, data, training=False):
-        data, tokens_masks = self.process_data(data)
+        data, tokens_masks,modalities = self.process_data(data)
         b, *_, device, dtype = *data.shape, data.device, data.dtype
 
         x = repeat(self.latents, 'n d -> b n d', b=b)
@@ -366,7 +366,7 @@ class Atomiser(nn.Module):
             masked_attention_mask = tokens_masks.clone()
             idxs_masking=None
      
-            masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask,self.masking)
+            masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask,modalities,self.masking)
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
