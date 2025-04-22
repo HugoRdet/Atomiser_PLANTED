@@ -116,7 +116,6 @@ class Atomiser(nn.Module):
         """
         super().__init__()
         self.input_axis = input_axis
-        self.masking=masking
         self.config=config
         self.transform=transform
 
@@ -367,7 +366,7 @@ class Atomiser(nn.Module):
             masked_attention_mask = tokens_masks.clone()
             idxs_masking=None
      
-            masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask,self.masking_values)
+            masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask,self.masking)
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
