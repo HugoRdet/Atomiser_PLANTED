@@ -30,15 +30,12 @@ def cache_fn(f):
     return cached_fn
 
 
-def pruning(tokens,attention_mask,percent):
-    
-
-    masked_tokens=int(tokens.shape[1]*(percent/100.))
-    
-    idx = torch.randperm(tokens.size(1))
-    tokens=tokens[:,idx]
-    attention_mask=attention_mask[:,idx]
-    return tokens[:,masked_tokens:],attention_mask[:,masked_tokens:],idx
+def pruning(tokens, attention_mask, percent):
+    N = tokens.size(1)
+    n_mask = int(N * percent/100.)
+    perm = torch.randperm(N, device=tokens.device)
+    keep_idx = perm[n_mask:]              
+    return tokens[:, keep_idx], attention_mask[:, keep_idx], keep_idx
 
 
 
