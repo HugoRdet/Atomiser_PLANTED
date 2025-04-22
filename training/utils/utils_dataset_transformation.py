@@ -485,10 +485,7 @@ class transformations_config_flair(nn.Module):
         torch.cuda.synchronize()
         t8 = time.time()
 
-        print("cw ",central_wavelength_processing.shape)
-        print("vp ",value_processed.shape)
-        print("bp ",band_post_proc.shape)
-        print("te ",time_encoding.shape)
+    
         tokens = torch.cat([
             central_wavelength_processing.to(im_sen.device),
             value_processed.to(im_sen.device),
