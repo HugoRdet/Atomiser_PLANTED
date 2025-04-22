@@ -115,6 +115,7 @@ trainer = Trainer(
     callbacks=[early_stop_callback, checkpoint_callback,accumulator],
     default_root_dir="./checkpoints/",
     val_check_interval=0.3,
+    precision="bf16",
 )
 
 
