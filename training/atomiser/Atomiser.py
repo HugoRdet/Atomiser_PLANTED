@@ -313,13 +313,12 @@ class Atomiser(nn.Module):
 
             masked_data = data.clone()
             masked_attention_mask = tokens_masks.clone()
-
+            idxs_masking=None
             if training and self.masking > 0:
                 masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask, self.masking)
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
-
 
 
             masked_data = rev_cross_attn(masked_data, latents=x)
