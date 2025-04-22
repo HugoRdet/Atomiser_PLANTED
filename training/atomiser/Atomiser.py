@@ -323,8 +323,10 @@ class Atomiser(nn.Module):
 
             masked_data = rev_cross_attn(masked_data, latents=x)
             masked_data = rev_ff(masked_data) + masked_data
+            print("hello :",idxs_masking.shape)
             data[:,idxs_masking]=masked_data
 
+            
             for self_attn, self_ff in self_attns:
                 x = self_attn(x) + x
                 x = self_ff(x) + x
