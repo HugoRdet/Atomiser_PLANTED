@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from einops.layers.torch import Reduce
 
-
+import time
 
 
 
@@ -294,7 +294,11 @@ class Atomiser(nn.Module):
 
 
     def forward(self, data, training=False):
+        t0 = time.perf_counter()
         data, tokens_masks = self.process_data(data)
+        t1 = time.perf_counter()
+        print(f"read: {t1-t0:.4f}s")
+
         b, *_, device, dtype = *data.shape, data.device, data.dtype
 
         x = repeat(self.latents, 'n d -> b n d', b=b)

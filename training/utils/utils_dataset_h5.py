@@ -546,19 +546,15 @@ class CustomPlanted(Dataset):
         img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
         img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
 
-        t0 = time.perf_counter()
+
         arr = self.h5["s2"][idx]    # or however you read your first modality
-        t1 = time.perf_counter()
+
 
         # 2) tensor conversion
         x = torch.from_numpy(arr)
-        t2 = time.perf_counter()
 
-        
 
-        print(f"read: {t1-t0:.4f}s, to_torch: {t2-t1:.4f}s")
-
-            
+                    
 
 
          
