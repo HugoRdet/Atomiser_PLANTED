@@ -160,7 +160,8 @@ class transformations_config_flair(nn.Module):
             encoding = enc.unsqueeze(0).unsqueeze(0).to(device)
             self.register_buffer(buffer_name, encoding)
         # expand to full batch
-        full = einops.repeat(encoding, "b t h w c -> (B b) (T t) h w c", B=B_size, T=T_size)
+        full = einops.repeat(encoding, "b t h w c d -> (B b) (T t) h w c d", B=B_size, T=T_size)
+
         return full
 
 
