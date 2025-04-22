@@ -177,7 +177,7 @@ class transformations_config_flair(nn.Module):
      
             encoded = encoded.expand(
                 B_size,               # expand the batch‐axis
-                encoded.size(1),      # T (time) stays the same
+                img_shape[1],      # T (time) stays the same
                 encoded.size(2),      # H
                 encoded.size(3),      # W
                 encoded.size(4),      # C
