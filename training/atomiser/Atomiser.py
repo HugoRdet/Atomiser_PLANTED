@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
-
+import numpy as np
 from einops import rearrange, repeat
 from einops.layers.torch import Reduce
 
@@ -30,12 +30,37 @@ def cache_fn(f):
     return cached_fn
 
 
-def pruning(tokens, attention_mask, percent):
-    N = tokens.size(1)
-    n_mask = int(N * percent/100.)
-    perm = torch.randperm(N, device=tokens.device)
-    keep_idx = perm[n_mask:]              
-    return tokens[:, keep_idx], attention_mask[:, keep_idx], keep_idx
+def pruning(tokens, attention_mask, modalities, percent):
+    """
+    Group‐wise random pruning: drop `percent`% of tokens within each modality.
+    - tokens:         (B, N, D)
+    - attention_mask: (B, N)
+    - modalities:     (N,) long tensor of modality IDs
+    - percent:        float in [0,100]
+    """
+    B, N, D  = tokens.shape
+    device   = tokens.device
+    keep_idx = []
+
+    # for each modality ID, randomly drop `percent`% of its positions
+    for m in torch.unique(modalities):
+        idxs   = (modalities == m).nonzero(as_tuple=True)[0]
+        n_mod  = idxs.size(0)
+        n_drop = int(n_mod * percent[m] / 100.0)
+        perm   = idxs[torch.randperm(n_mod, device=device)]
+        keep_m = perm[n_drop:]           # keep the rest
+        keep_idx.append(keep_m)
+
+    # flatten and sort to preserve original order
+    keep_idx = torch.cat(keep_idx)
+    keep_idx, _ = torch.sort(keep_idx)
+
+    # slice out kept positions
+    return (
+        tokens[:, keep_idx, :],
+        attention_mask[:, keep_idx],
+        keep_idx
+    )
 
 
 
@@ -60,7 +85,6 @@ class Atomiser(nn.Module):
         weight_tie_layers = False,
         self_per_cross_attn = 1,
         final_classifier_head = True,
-        masking=0,
     ):
         """The shape of the final attention mechanism will be:
         depth * (cross attention -> self_per_cross_attn * self attention)
@@ -126,6 +150,14 @@ class Atomiser(nn.Module):
 
         self.VH = nn.Parameter(torch.empty(shape_input_wavelength))
         nn.init.trunc_normal_(self.VH, mean=0.0, std=0.02, a=-2.0, b=2.0)
+
+        self.masking_values=[]
+        self.masking_values.append(self.config["Atomiser"]["masking_s2"])
+        self.masking_values.append(self.config["Atomiser"]["masking_l7"])
+        self.masking_values.append(self.config["Atomiser"]["masking_modis"])
+        self.masking_values.append(self.config["Atomiser"]["masking_s1"])
+        self.masking_values.append(self.config["Atomiser"]["masking_alos"])
+        self.masking=torch.from_numpy(np.array(self.masking_values))
 
         
         
@@ -237,58 +269,78 @@ class Atomiser(nn.Module):
         if mode=="sar":
             return self.transform.apply_transformations_SAR(img,date,mask,modality,wave_encoding=wave_encoding)
                 
-    def process_data(self,batch):
-        L_tokens=[]
-        L_masks=[]
-        
-        img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al = batch
-        
+    def process_data(self, batch):
+        L_tokens     = []
+        L_masks      = []
+        L_modalities = []
+
+        # unpack batch
+        img_s2, img_l7, img_mo, img_s1, img_al, \
+        date_s2, date_l7, date_mo, date_s1, date_al, \
+        mask_s2, mask_l7, mask_mo, mask_s1, mask_al = batch
+
+        # S2 → modality 0
         if self.config["dataset"]["S2"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
-            tokens_s2,tokens_mask_s2=self.get_tokens(tmp_img,date_s2,tmp_mask,mode="optique",modality="s2")
-            L_masks.append(tokens_mask_s2)
-            L_tokens.append(tokens_s2)
+            t, m = self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
+            tok, tok_mask = self.get_tokens(t, date_s2, m, mode="optique", modality="s2")
+            L_tokens.append(tok)
+            L_masks.append(tok_mask)
+            L_modalities.append(torch.zeros(tok.shape[1],
+                                            dtype=torch.long,
+                                            device=tok.device))
 
-
-
-
-
-        
+        # L7 → modality 1
         if self.config["dataset"]["L7"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
-            tokens_l7,tokens_mask_l7=self.get_tokens(tmp_img,date_l7,tmp_mask,mode="optique",modality="l7")
-            L_masks.append(tokens_mask_l7)
-            L_tokens.append(tokens_l7)
+            t, m = self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
+            tok, tok_mask = self.get_tokens(t, date_l7, m, mode="optique", modality="l7")
+            L_tokens.append(tok)
+            L_masks.append(tok_mask)
+            L_modalities.append(torch.ones(tok.shape[1],
+                                        dtype=torch.long,
+                                        device=tok.device))
 
-
-
+        # MODIS → modality 2
         if self.config["dataset"]["MODIS"]:
-            tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
-            L_masks.append(tokens_mask_mo)
-            L_tokens.append(tokens_mo)
+            tok, tok_mask = self.get_tokens(img_mo, date_mo, mask_mo,
+                                            mode="optique", modality="modis")
+            L_tokens.append(tok)
+            L_masks.append(tok_mask)
+            L_modalities.append(torch.full((tok.shape[1],),
+                                        2,
+                                        dtype=torch.long,
+                                        device=tok.device))
 
-
+        # S1 → modality 3
         if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
-            L_masks.append(tokens_mask_s1)
-            L_tokens.append(tokens_s1)
+            tok, tok_mask = self.get_tokens(img_s1, date_s1, mask_s1,
+                                            mode="sar", modality="s1",
+                                            wave_encoding=(self.VV, self.VH))
+            L_tokens.append(tok)
+            L_masks.append(tok_mask)
+            L_modalities.append(torch.full((tok.shape[1],),
+                                        3,
+                                        dtype=torch.long,
+                                        device=tok.device))
 
-
+        # ALOS → modality 4
         if self.config["dataset"]["ALOS"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
-            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH))
-            L_masks.append(tokens_mask_al)
-            L_tokens.append(tokens_al)
-      
+            t, m = self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
+            tok, tok_mask = self.get_tokens(t, date_al, m,
+                                            mode="sar", modality="alos",
+                                            wave_encoding=(self.VV, self.VH))
+            L_tokens.append(tok)
+            L_masks.append(tok_mask)
+            L_modalities.append(torch.full((tok.shape[1],),
+                                        4,
+                                        dtype=torch.long,
+                                        device=tok.device))
 
+        # concatenate along token dimension
+        tokens     = torch.cat(L_tokens,     dim=1)  # (B, N, D)
+        masks      = torch.cat(L_masks,      dim=1)  # (B, N)
+        modalities = torch.cat(L_modalities, dim=0)  # (N,)
 
-
-        tokens=torch.cat(L_tokens,dim=1)
-        tokens_mask=torch.cat(L_masks,dim=1)
-
-
-            
-        return tokens,tokens_mask
+        return tokens, masks, modalities
 
 
 
@@ -314,8 +366,8 @@ class Atomiser(nn.Module):
             masked_data = data.clone()
             masked_attention_mask = tokens_masks.clone()
             idxs_masking=None
-            if self.masking > 0:
-                masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask, self.masking)
+     
+            masked_data, masked_attention_mask,idxs_masking = pruning(masked_data, masked_attention_mask,self.masking_values)
 
             x = cross_attn(x, context=masked_data, mask=masked_attention_mask) + x
             x = cross_ff(x) + x
