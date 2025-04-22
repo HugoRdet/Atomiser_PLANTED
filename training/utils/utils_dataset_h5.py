@@ -554,11 +554,9 @@ class CustomPlanted(Dataset):
         x = torch.from_numpy(arr)
         t2 = time.perf_counter()
 
-        # 3) your big transform
-        tok, mask = self.trans_config.apply_transformations_optique(x, …)
-        t3 = time.perf_counter()
+        
 
-        print(f"read: {t1-t0:.4f}s, to_torch: {t2-t1:.4f}s, transform: {t3-t2:.4f}s")
+        print(f"read: {t1-t0:.4f}s, to_torch: {t2-t1:.4f}s")
 
             
 
