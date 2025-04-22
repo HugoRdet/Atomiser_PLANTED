@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from .utils_dataset import read_yaml,save_yaml
 from .image_utils import *
 from .files_utils import*
@@ -10,6 +9,7 @@ import numpy as np
 import datetime
 from torchvision.transforms.functional import rotate, hflip, vflip
 import random
+import torch.nn as nn
 
 def fourier_encode(x, max_freq, num_bands = 4):
     x = x.unsqueeze(-1)
@@ -42,19 +42,25 @@ class transformations_config_flair(nn.Module):
         self.bands_sen2_infos=self.bands_yaml["bands_sen2_info"]
         self.s2_waves=self.get_wavelengths_infos(self.bands_sen2_infos)
         self.s2_res=self.get_resolutions_infos(self.bands_sen2_infos)
+        self.register_buffer("positional_encoding_s2", None)
 
         self.bands_l7_infos=self.bands_yaml["bands_l7_info"]
         self.l7_waves=self.get_wavelengths_infos(self.bands_l7_infos)
         self.l7_res=self.get_resolutions_infos(self.bands_l7_infos)
+        self.register_buffer("positional_encoding_l7", None)
 
         self.bands_modis_infos=self.bands_yaml["bands_modis_info"]
         self.mo_waves=self.get_wavelengths_infos(self.bands_modis_infos)
         self.mo_res=self.get_resolutions_infos(self.bands_modis_infos)
+        self.register_buffer("positional_encoding_modis", None)
 
         self.bands_sen1_infos=self.bands_yaml["bands_sen1_info"]
+        self.register_buffer("positional_encoding_s1", None)
+
         self.bands_alos_infos=self.bands_yaml["bands_alos_info"]
-        self.wavelengths_encoding_cache=dict()
-        self.positional_encoding_cache=dict()
+        self.register_buffer("positional_encoding_alos", None)
+
+  
 
         self.config=config
   
@@ -72,9 +78,7 @@ class transformations_config_flair(nn.Module):
         self.gaussian_stds=torch.Tensor(np.array(self.gaussian_stds)).to(torch.float32).view(1, -1)
         
         
-        self.register_buffer('pos_enc', None)
-        for m in ['s2', 'l7', 'modis', 's1', 'alos']:
-            self.register_buffer(f'wavelength_cache_{m}', None)
+        
         
         
 
@@ -103,8 +107,14 @@ class transformations_config_flair(nn.Module):
 
         return np.array(bandwidth),np.array(central_w)
     
-    def get_resolutions_infos(self, bands_info):
-        return np.array([band["resolution"] for band in bands_info.values()])
+    def get_resolutions_infos(self,bands_info):
+        res=[]
+        for band_name in bands_info:
+            band=bands_info[band_name]
+            res.append(band["resolution"])
+
+
+        return np.array(res)
    
 
 
@@ -130,39 +140,59 @@ class transformations_config_flair(nn.Module):
 
 
     
-    def pos_encoding(self, img_shape, size, positional_scaling_l=None, max_freq=4, num_bands=4):
-        L_pos = []
+    def pos_encoding(self,img_shape,size,positional_scaling_l=None,max_freq=4,num_bands = 4):
+        L_pos=[]
         if positional_scaling_l is None:
-            positional_scaling_l = torch.ones(img_shape[-1]) * 2.0
-        for scale in positional_scaling_l:
-            axis_pos = [torch.linspace(-scale/2, scale/2, steps=size, device='cpu') 
-                        for _ in range(2)]
-            pos = torch.stack(torch.meshgrid(*axis_pos, indexing='ij'), dim=-1)
-            pos = fourier_encode(pos, max_freq=max_freq, num_bands=num_bands)
-            pos = einops.rearrange(pos, "h w c f -> h w (c f)").unsqueeze(-2)
-            L_pos.append(pos)
-        return torch.cat(L_pos, dim=-2)
-    
-    
-    def get_positional_processing(self, img_shape, resolution, T_size, B_size, modality, device):
-        size = img_shape[-2]
-        buffer_name = f"pos_enc_{size}"
-        if hasattr(self, buffer_name) and getattr(self, buffer_name) is not None:
-            encoding = getattr(self, buffer_name)
-        else:
-            pos_scale = None
-            if resolution is not None:
-                pos_scale = (size * resolution) / 400.0
-            max_f = self.config["Atomiser"]["pos_max_freq"]
-            n_b = self.config["Atomiser"]["pos_num_freq_bands"]
-            enc = self.pos_encoding(img_shape, size, positional_scaling_l=pos_scale, max_freq=max_f, num_bands=n_b)
-            # add batch/time dims
-            encoding = enc.unsqueeze(0).unsqueeze(0).to(device)
-            self.register_buffer(buffer_name, encoding)
-        # expand to full batch
-        full = einops.repeat(encoding, "b t h w c d -> (B b) (T t) h w c d", B=B_size, T=T_size)
+            positional_scaling_l=torch.ones(img_shape[-1])*2.0
 
-        return full
+        for idx in range(positional_scaling_l.shape[0]):
+            positional_scaling=positional_scaling_l[idx]
+
+            axis_pos = list(map(lambda size: torch.linspace(-positional_scaling/2.0, positional_scaling/2.0, steps=size), (size,size)))
+
+            pos = torch.stack(torch.meshgrid(*axis_pos, indexing = 'ij'), dim = -1)
+            
+            pos=fourier_encode(pos,max_freq=max_freq,num_bands = num_bands)
+
+            pos=einops.rearrange(pos,"h w c f -> h w  (c f) ").unsqueeze(-2)
+            L_pos.append(pos)
+
+        
+
+
+        return torch.cat(L_pos,dim=-2)
+    
+    
+    def get_positional_processing(self,img_shape,resolution,T_size,B_size,modality,device):
+    
+        id_cache=f"positional_encoding_{modality}"
+        encoded = getattr(self, id_cache)
+        if  encoded is not None:
+            
+     
+            encoded=einops.repeat(encoded,"b t h w c d -> (B b) (T t) h w c d",B=B_size,T=T_size)
+            return encoded
+
+        #b t h w c
+        size=img_shape[-2]
+        
+
+        positional_scaling=None
+        if not (resolution is None):
+            positional_scaling=(size * resolution)/400.0
+        
+         
+        max_freq=self.config["Atomiser"]["pos_max_freq"]
+        num_bands=self.config["Atomiser"]["pos_num_freq_bands"]
+        
+
+        encoding=self.pos_encoding(img_shape,size,positional_scaling_l=positional_scaling,max_freq=max_freq,num_bands = num_bands).unsqueeze(0).unsqueeze(0)
+
+        encoding = encoding.to(device)
+        setattr(self,id_cache, encoding)
+
+        encoding=einops.repeat(encoding,"b t h w c d -> (B b) (T t) h w c d",B=B_size,T=T_size)
+        return encoding
 
 
     def apply_temporal_spatial_transforms(self, img, mask):
@@ -229,44 +259,82 @@ class transformations_config_flair(nn.Module):
 
     import torch
 
-    def compute_gaussian_band_max_encoding(self, lambda_centers, bandwidths, num_points=50, modality="S2"):
+    def compute_gaussian_band_max_encoding(self, lambda_centers, bandwidths, num_points=50,modality="S2"):
+
+        
+        # Ensure inputs are PyTorch tensors and on the same device as self.gaussian_means.
         device = self.gaussian_means.device
-        lc = torch.as_tensor(lambda_centers, dtype=torch.float32, device=device)
-        bw = torch.as_tensor(bandwidths, dtype=torch.float32, device=device)
-        lam_min, lam_max = lc - bw/2, lc + bw/2
-        t = torch.linspace(0, 1, num_points, device=device)
-        sampled = lam_min.unsqueeze(1) + (lam_max - lam_min).unsqueeze(1) * t.unsqueeze(0)
-        gauss = torch.exp(-0.5 * (((sampled.unsqueeze(2) - self.gaussian_means.unsqueeze(0).unsqueeze(0)) /
-                                   self.gaussian_stds.unsqueeze(0).unsqueeze(0)) ** 2))
-        return gauss.max(dim=1).values
+
+        
+        lambda_centers = torch.as_tensor(lambda_centers, dtype=torch.float32, device=device)
+        bandwidths = torch.as_tensor(bandwidths, dtype=torch.float32, device=device)
+
+        
+        lambda_min = lambda_centers - bandwidths / 2 
+        lambda_max = lambda_centers + bandwidths / 2 
+        
+        
+        t = torch.linspace(0, 1, num_points, device=device)  
+        
+        # Compute the sampled wavelengths for each spectral band using broadcasting.
+        # Each spectral band gets its own set of sample points.
+        # sampled_lambdas shape: [s, num_points]
+
+        sampled_lambdas = lambda_min.unsqueeze(1) + (lambda_max - lambda_min).unsqueeze(1) * t.unsqueeze(0)
+
+        gaussians = torch.exp(
+            -0.5 * (
+                ((sampled_lambdas.unsqueeze(2) - self.gaussian_means.unsqueeze(0).unsqueeze(0)) / 
+                self.gaussian_stds.unsqueeze(0).unsqueeze(0)) ** 2
+            )
+        )
+        
+        # For each spectral band and each Gaussian, find the maximum activation across the sampled points.
+        # The max is taken along dim=1 (the num_points axis), returning a tensor of shape [s, num_gaussians].
+      
+        encoding = gaussians.max(dim=-2).values
+       
+
+        
+        return encoding
 
 
     
-    def get_bvalue_processing(self, img):
-        mode = self.config["Atomiser"]["bandvalue_encoding"]
-        if mode == "NATURAL":
-            return img.unsqueeze(-1)
-        if mode == "FF":
-            nf = self.config["Atomiser"]["bandvalue_num_freq_bands"]
-            mf = self.config["Atomiser"]["bandvalue_max_freq"]
-            return fourier_encode(img, mf, nf)
-        return img.unsqueeze(-1)
+    def get_bvalue_processing(self,img):
+        if self.config["Atomiser"]["bandvalue_encoding"]=="NATURAL":
+                return img.unsqueeze(-1)
+        
+        elif self.config["Atomiser"]["bandvalue_encoding"]=="FF":
+            num_bands=self.config["Atomiser"]["bandvalue_num_freq_bands"]
+            max_freq=self.config["Atomiser"]["bandvalue_max_freq"]
+            fourier_encoded_values=fourier_encode(img, max_freq, num_bands)
+            
+            return fourier_encoded_values
 
-    def wavelength_processing(self, device, wavelength, bandwidth, img_size, B_size, T_size, modality="s2"):
-        cache_attr = f"wavelength_cache_{modality}"
-        cached = getattr(self, cache_attr, None)
-        if isinstance(cached, torch.Tensor):
-            enc = cached
-        else:
-            enc0 = self.compute_gaussian_band_max_encoding(wavelength, bandwidth, num_points=50)
-            enc0 = enc0.unsqueeze(0).unsqueeze(0).unsqueeze(0)
-            enc = einops.repeat(enc0, 'b t h w c d -> b (T t) (h h1) (w w1) c d',
-                                 T=T_size, h1=img_size, w1=img_size)
-            enc = enc.to(device)
-            self.register_buffer(cache_attr, enc)
-        # expand over batch
-        full = einops.repeat(enc, 'b t h w c d -> (B b) t h w c d', B=B_size)
-        return full
+    def wavelength_processing(self,device,wavelength,bandwidth,img_size,B_size,T_size,modality="s2"):
+
+        id_cache=f"wavelength_encoding_{modality}"
+        encoded = getattr(self, id_cache)
+        if  encoded is not None :
+
+            encoded=einops.repeat(encoded,'b t h w c d  -> (B b) t h w c d ',B=B_size)
+            return encoded.to(device)
+        
+   
+
+
+        
+        if self.config["Atomiser"]["wavelength_encoding"]=="GAUSSIANS":
+            encoded=self.compute_gaussian_band_max_encoding(wavelength, bandwidth, num_points=50).unsqueeze(0).unsqueeze(0).unsqueeze(0)
+  
+            encoded=einops.repeat(encoded,'b t h w c d  -> b (T t) (h h1) (w w1) c d ',T=T_size,h1=img_size,w1=img_size)
+
+            encoded=encoded.to(device)
+            setattr(self,id_cache, encoded)
+       
+            encoded=einops.repeat(encoded,'b t h w c d  -> (B b) t h w c d ',B=B_size)
+
+            return encoded
     
 
     def time_processing(self,time_stamp,img_size=-1):
