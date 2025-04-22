@@ -36,6 +36,7 @@ class transformations_config_flair(nn.Module):
     
 
     def __init__(self,bands_yaml,config):
+        super().__init__()
       
         self.bands_yaml=read_yaml(bands_yaml)
         self.bands_sen2_infos=self.bands_yaml["bands_sen2_info"]
