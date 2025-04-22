@@ -14,7 +14,7 @@ import random
 from .FLAIR_2 import*
 from datetime import datetime, timezone
 import torch.distributed as dist
-
+import time
 def _init_worker(worker_id):
     worker_info = torch.utils.data.get_worker_info()
     ds = worker_info.dataset
@@ -537,12 +537,28 @@ class CustomPlanted(Dataset):
 
         tokens_list=[]
         token_masks_wavelength=[]
+
+        
         
         img_s2,date_s2,mask_s2=self.get_modality(f,"s2",idx)
         img_l7,date_l7,mask_l7=self.get_modality(f,"l7",idx)
         img_mo,date_mo,mask_mo=self.get_modality(f,"modis",idx)
         img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
         img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
+
+        t0 = time.perf_counter()
+        arr = self.h5["s2"][idx]    # or however you read your first modality
+        t1 = time.perf_counter()
+
+        # 2) tensor conversion
+        x = torch.from_numpy(arr)
+        t2 = time.perf_counter()
+
+        # 3) your big transform
+        tok, mask = self.trans_config.apply_transformations_optique(x, …)
+        t3 = time.perf_counter()
+
+        print(f"read: {t1-t0:.4f}s, to_torch: {t2-t1:.4f}s, transform: {t3-t2:.4f}s")
 
             
 
