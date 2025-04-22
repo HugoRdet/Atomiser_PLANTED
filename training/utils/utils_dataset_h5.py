@@ -15,6 +15,12 @@ from .FLAIR_2 import*
 from datetime import datetime, timezone
 import torch.distributed as dist
 
+def _init_worker(worker_id):
+    worker_info = torch.utils.data.get_worker_info()
+    ds = worker_info.dataset
+    # open the file once per worker, and keep it around on `ds.h5`
+    ds.h5 = h5py.File(ds.file_path, 'r')
+
 def del_file(path):
     if os.path.exists(path):
         os.remove(path)
@@ -500,6 +506,7 @@ class CustomPlanted(Dataset):
         self.trans_config = trans_config
         self.augment = augment
         self.max_tokens=self.config["trainer"]["max_tokens"]
+        self.h5 = None
 
         with h5py.File(self.file_path, 'r') as f:
             self.num_samples = f["s1"].shape[0]  # all modalities have the same first dimension
@@ -520,22 +527,22 @@ class CustomPlanted(Dataset):
 
 
     def __getitem__(self, idx):
-        with h5py.File(self.file_path, 'r') as f:
+        f = self.h5
             # Load modalities (you can combine or subset these as needed)
             #s1 = torch.tensor(f["s1"][idx], dtype=torch.float32)        # [8,12,12,3]
 
 
-            label= f["label"][idx]
-            frequency=f["frequencies"][idx]
+        label= f["label"][idx]
+        frequency=f["frequencies"][idx]
 
-            tokens_list=[]
-            token_masks_wavelength=[]
-            
-            img_s2,date_s2,mask_s2=self.get_modality(f,"s2",idx)
-            img_l7,date_l7,mask_l7=self.get_modality(f,"l7",idx)
-            img_mo,date_mo,mask_mo=self.get_modality(f,"modis",idx)
-            img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
-            img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
+        tokens_list=[]
+        token_masks_wavelength=[]
+        
+        img_s2,date_s2,mask_s2=self.get_modality(f,"s2",idx)
+        img_l7,date_l7,mask_l7=self.get_modality(f,"l7",idx)
+        img_mo,date_mo,mask_mo=self.get_modality(f,"modis",idx)
+        img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
+        img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
 
             
 
@@ -602,6 +609,7 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
+            worker_init_fn=_init_worker,
         )
 
     def val_dataloader(self):
@@ -612,6 +620,7 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
+            worker_init_fn=_init_worker,
         )
 
     def test_dataloader(self):
@@ -623,4 +632,5 @@ class CustomPlantedDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             batch_size=self.batch_size,
             pin_memory=True,  # Enable pinned memory
+            worker_init_fn=_init_worker,
         )
