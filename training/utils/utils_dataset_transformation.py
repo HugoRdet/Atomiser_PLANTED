@@ -144,7 +144,7 @@ class transformations_config_flair(nn.Module):
 
 
     
-    def pos_encoding(self,img_shape,size,positional_scaling_l=None,max_freq=4,num_bands = 4):
+    def pos_encoding(self,img_shape,size,positional_scaling_l=None,max_freq=4,num_bands = 4,device="cpu"):
         L_pos=[]
         if positional_scaling_l is None:
             positional_scaling_l=torch.ones(img_shape[-1])*2.0
@@ -152,9 +152,9 @@ class transformations_config_flair(nn.Module):
         for idx in range(positional_scaling_l.shape[0]):
             positional_scaling=positional_scaling_l[idx]
 
-            axis_pos = list(map(lambda size: torch.linspace(-positional_scaling/2.0, positional_scaling/2.0, steps=size), (size,size)))
+            axis_pos = list(map(lambda size: torch.linspace(-positional_scaling/2.0, positional_scaling/2.0, steps=size,device=device), (size,size)))
 
-            pos = torch.stack(torch.meshgrid(*axis_pos, indexing = 'ij'), dim = -1)
+            pos = torch.stack(torch.meshgrid(*axis_pos, indexing = 'ij',device=device), dim = -1)
             
             pos=fourier_encode(pos,max_freq=max_freq,num_bands = num_bands)
 
@@ -174,7 +174,14 @@ class transformations_config_flair(nn.Module):
         if  encoded is not None:
             
      
-            encoded=einops.repeat(encoded,"b t h w c d -> (B b) (T t) h w c d",B=B_size,T=T_size)
+            encoded = encoded.expand(
+                B_size,               # expand the batch‐axis
+                encoded.size(1),      # T (time) stays the same
+                encoded.size(2),      # H
+                encoded.size(3),      # W
+                encoded.size(4),      # C
+                encoded.size(5)       # D
+            )
             return encoded
 
         #b t h w c
@@ -190,7 +197,7 @@ class transformations_config_flair(nn.Module):
         num_bands=self.config["Atomiser"]["pos_num_freq_bands"]
         
 
-        encoding=self.pos_encoding(img_shape,size,positional_scaling_l=positional_scaling,max_freq=max_freq,num_bands = num_bands).unsqueeze(0).unsqueeze(0)
+        encoding=self.pos_encoding(img_shape,size,positional_scaling_l=positional_scaling,max_freq=max_freq,num_bands = num_bands,device=device).unsqueeze(0).unsqueeze(0)
 
         encoding = encoding.to(device)
         setattr(self,id_cache, encoding)
