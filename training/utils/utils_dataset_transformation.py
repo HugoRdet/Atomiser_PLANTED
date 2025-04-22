@@ -10,6 +10,7 @@ import datetime
 from torchvision.transforms.functional import rotate, hflip, vflip
 import random
 import torch.nn as nn
+import time
 
 def fourier_encode(x, max_freq, num_bands = 4):
     x = x.unsqueeze(-1)
@@ -154,7 +155,7 @@ class transformations_config_flair(nn.Module):
 
             axis_pos = list(map(lambda size: torch.linspace(-positional_scaling/2.0, positional_scaling/2.0, steps=size,device=device), (size,size)))
 
-            pos = torch.stack(torch.meshgrid(*axis_pos, indexing = 'ij',device=device), dim = -1)
+            pos = torch.stack(torch.meshgrid(*axis_pos, indexing = 'ij'), dim = -1)
             
             pos=fourier_encode(pos,max_freq=max_freq,num_bands = num_bands)
 
@@ -411,83 +412,99 @@ class transformations_config_flair(nn.Module):
          
 
 
-    def apply_transformations_optique(self,im_sen,dates_sen,mask_sen,mode):
+    def apply_transformations_optique(self, im_sen, dates_sen, mask_sen, mode):
+        # --- select band info based on mode ---
         if mode=="s2":
-            tmp_infos=self.bands_sen2_infos
-            res=self.s2_res
-            tmp_bandwidth,tmp_central_wavelength=self.s2_waves
+            tmp_infos = self.bands_sen2_infos
+            res = self.s2_res
+            tmp_bandwidth, tmp_central_wavelength = self.s2_waves
         elif mode=="l7":
-            tmp_infos=self.bands_l7_infos
-            res=self.l7_res
-            tmp_bandwidth,tmp_central_wavelength=self.l7_waves
+            tmp_infos = self.bands_l7_infos
+            res = self.l7_res
+            tmp_bandwidth, tmp_central_wavelength = self.l7_waves
         elif mode=="modis":
-            tmp_infos=self.bands_modis_infos
-            res=self.mo_res
-            tmp_bandwidth,tmp_central_wavelength=self.mo_waves
+            tmp_infos = self.bands_modis_infos
+            res = self.mo_res
+            tmp_bandwidth, tmp_central_wavelength = self.mo_waves
 
-        if len(im_sen.shape)==4:
-            im_sen = im_sen.unsqueeze(dim=0).unsqueeze(dim=0) # 1;1;8;12;12;3
-            token_masks=mask_sen.unsqueeze(dim=0).unsqueeze(dim=0)# 1;1;8;12;12;3
-     
-        
-        img_size=im_sen.shape[3]
-        tokens_list = []
-        #token_masks=mask_sen #T H W C
-        #token_masks=einops.rearrange(mask_sen,"t h w c -> (t h w c)")
+        # handle singleton dims
+        if im_sen.ndim == 4:
+            im_sen = im_sen.unsqueeze(0).unsqueeze(0)
+            mask_sen = mask_sen.unsqueeze(0).unsqueeze(0)
 
-        
-        
+        B_size, T_size, H, W, C = im_sen.shape
+        img_size = H
 
-        
+        # =========== TOTAL TIMER ===========
+        torch.cuda.synchronize()
+        t_total_start = time.time()
 
-        time_encoding=self.time_encoding(dates_sen,img_size).unsqueeze(-2)
-        #time_encoding=einops.repeat(time_encoding,"b t h w c e -> b t h w (c1 c) e ",c1=tmp_bandwidth.shape[0])
-
+        # 1) Time encoding
+        torch.cuda.synchronize()
+        t0 = time.time()
+        time_encoding = self.time_encoding(dates_sen, img_size).unsqueeze(-2)
         c1 = tmp_bandwidth.shape[0]
         time_encoding = time_encoding.expand(
-            -1,   # B stays the same
-            -1,   # T stays the same
-            -1,   # H stays the same
-            -1,   # W stays the same
-            c1,  # expand the singleton c‐dimension
-            -1    # E stays the same
-        )  # now [B, T, H, W, c1, E]
+            B_size, T_size, H, W, c1, -1
+        )
+        torch.cuda.synchronize()
+        t1 = time.time()
 
-        T_size=im_sen.shape[1]
-        B_size=im_sen.shape[0]
+        # 2) Wavelength encoding
+        torch.cuda.synchronize()
+        t2 = time.time()
+        central_wavelength_processing = self.wavelength_processing(
+            im_sen.device,
+            tmp_central_wavelength,
+            tmp_bandwidth,
+            img_size,
+            B_size,
+            T_size,
+            modality=mode
+        )
+        torch.cuda.synchronize()
+        t3 = time.time()
 
-        central_wavelength_processing=self.wavelength_processing(im_sen.device,tmp_central_wavelength,tmp_bandwidth,img_size,B_size,T_size,modality=mode)        
-        value_processed=self.get_bvalue_processing(im_sen)
-        
+        # 3) Band‑value encoding
+        torch.cuda.synchronize()
+        t4 = time.time()
+        value_processed = self.get_bvalue_processing(im_sen)
+        torch.cuda.synchronize()
+        t5 = time.time()
 
+        # 4) Positional encoding
+        torch.cuda.synchronize()
+        t6 = time.time()
+        band_post_proc = self.get_positional_processing(
+            im_sen.shape, res, T_size, B_size, mode, im_sen.device
+        )
+        torch.cuda.synchronize()
+        t7 = time.time()
 
+        # 5) Concat + rearrange
+        torch.cuda.synchronize()
+        t8 = time.time()
+        tokens = torch.cat([
+            central_wavelength_processing.to(im_sen.device),
+            value_processed.to(im_sen.device),
+            band_post_proc.to(im_sen.device),
+            time_encoding.to(im_sen.device)
+        ], dim=5)
+        tokens = einops.rearrange(tokens, "b t h w c f -> b (t h w c) f")
+        token_masks = einops.rearrange(mask_sen, "b t h w c -> b (t h w c)")
+        torch.cuda.synchronize()
+        t9 = time.time()
 
-        #positional encoding
+        # =========== PRINT BREAKDOWN ===========
+        print(f"[apply_optique] total {(t9-t_total_start):.3f}s | "
+            f"time_enc {(t1-t0):.3f}s | "
+            f"wl_enc {(t3-t2):.3f}s | "
+            f"bv_enc {(t5-t4):.3f}s | "
+            f"pos_enc {(t7-t6):.3f}s | "
+            f"concat {(t9-t8):.3f}s")
 
-        #get_positional_processing(self,img_shape,resolution,T_size,B_size,modality,device):
-        band_post_proc = self.get_positional_processing(im_sen.shape,res,T_size,B_size,mode,im_sen.device )
+        return tokens, token_masks
 
-   
-
-
-        tokens=torch.cat([central_wavelength_processing.to(im_sen.device),
-                          value_processed.to(im_sen.device),
-                          band_post_proc.to(im_sen.device),
-                          time_encoding.to(im_sen.device)         
-                ],dim=5)
-        
-        
-    
-
-
-        
-        tokens=einops.rearrange(tokens,"b t h w c f ->b  (t h w c) f")
-        token_masks=einops.rearrange(mask_sen,"b t h w c -> b (t h w c)")
-
-   
-    
-
-        return tokens,token_masks
     
 
     def apply_transformations_SAR(self,im_sen,dates_sen,mask_sen,mode,wave_encoding=None):
