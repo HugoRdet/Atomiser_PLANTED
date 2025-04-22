@@ -88,6 +88,7 @@ class Model(pl.LightningModule):
                 weight_tie_layers=config["Atomiser"]["weight_tie_layers"],
                 self_per_cross_attn=config["Atomiser"]["self_per_cross_attn"],
                 final_classifier_head=config["Atomiser"]["final_classifier_head"],
+                masking=config["Atomiser"]["masking"]
             )
 
 
