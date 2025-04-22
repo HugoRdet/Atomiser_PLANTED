@@ -43,16 +43,20 @@ class transformations_config_flair(nn.Module):
         self.s2_waves=self.get_wavelengths_infos(self.bands_sen2_infos)
         self.s2_res=self.get_resolutions_infos(self.bands_sen2_infos)
         self.register_buffer("positional_encoding_s2", None)
+        self.register_buffer('wavelength_encoding_s2', None)
+        
 
         self.bands_l7_infos=self.bands_yaml["bands_l7_info"]
         self.l7_waves=self.get_wavelengths_infos(self.bands_l7_infos)
         self.l7_res=self.get_resolutions_infos(self.bands_l7_infos)
         self.register_buffer("positional_encoding_l7", None)
+        self.register_buffer('wavelength_encoding_l7', None)
 
         self.bands_modis_infos=self.bands_yaml["bands_modis_info"]
         self.mo_waves=self.get_wavelengths_infos(self.bands_modis_infos)
         self.mo_res=self.get_resolutions_infos(self.bands_modis_infos)
         self.register_buffer("positional_encoding_modis", None)
+        self.register_buffer('wavelength_encoding_modis', None)
 
         self.bands_sen1_infos=self.bands_yaml["bands_sen1_info"]
         self.register_buffer("positional_encoding_s1", None)
