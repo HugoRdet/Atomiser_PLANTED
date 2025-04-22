@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from .utils_dataset import read_yaml,save_yaml
 from .image_utils import *
 from .files_utils import*
@@ -30,7 +31,7 @@ def fourier_encode(x, max_freq, num_bands = 4):
     return x
 
 
-class transformations_config_flair:
+class transformations_config_flair(nn.Module):
 
     
 
