@@ -100,12 +100,12 @@ class Atomiser(pl.LightningModule):
                 use_flash   = True
             ),
             context_dim = input_dim
-        ))
+        ) if key is not None else None)  
 
         get_cross_ff = cache_fn(lambda key=None: PreNorm(
             latent_dim,
             FeedForward(latent_dim, dropout=ff_dropout)
-        ))
+        ) if key is not None else None)  
 
         get_latent_attn = cache_fn(lambda key=None: PreNorm(
             latent_dim,
@@ -116,12 +116,12 @@ class Atomiser(pl.LightningModule):
                 dropout    = attn_dropout,
                 use_flash  = True
             )
-        ))
+        ) if key is not None else None)  
 
         get_latent_ff = cache_fn(lambda key=None: PreNorm(
             latent_dim,
             FeedForward(latent_dim, dropout=ff_dropout)
-        ))
+        ) if key is not None else None)  
 
         # Build cross/self-attn layers
         self.layers = nn.ModuleList()
