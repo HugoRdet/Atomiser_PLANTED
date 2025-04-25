@@ -241,8 +241,10 @@ class Atomiser(pl.LightningModule):
         x = repeat(self.latents, 'n d -> b n d', b=b)
         # apply mask to tokens
         tokens_mask = tokens_mask.to(torch.bool)
-        print(tokens.shape)
+        
         tokens = tokens.masked_fill(~tokens_mask.unsqueeze(-1), 0.)
+
+        print(tokens.shape)
 
         # cross & self layers
         for idx_depth,(cross_attn, cross_ff, self_attns) in enumerate(self.layers):
