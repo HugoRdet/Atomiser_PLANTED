@@ -110,7 +110,7 @@ if not checkpoint_files:
 checkpoint_path = sorted(checkpoint_files, key=os.path.getmtime)[-1]
 print(f"Loading best checkpoint: {checkpoint_path}")
 
-model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
+model = Model.load_from_checkpoint(checkpoint_path, config=config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config,strict=False)
 
 
 data_module = CustomPlantedDataModule(
