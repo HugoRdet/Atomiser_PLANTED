@@ -26,7 +26,7 @@ def cache_fn(f):
             raise ValueError("When caching, you must provide a `key`")
         if key in cache:
             return cache[key]
-        result = f(*args, key=key, **kwargs)  # key forwarded here
+        result = f(key=key, *args, **kwargs)
         cache[key] = result
         return result
     return cached_fn
