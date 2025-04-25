@@ -208,6 +208,7 @@ class Atomiser(pl.LightningModule):
 
 
         if self.config["dataset"]["S1"]:
+            print("ok")
             tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)

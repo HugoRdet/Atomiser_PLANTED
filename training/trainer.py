@@ -182,14 +182,7 @@ class Model(pl.LightningModule):
 
         return loss 
     
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        if self.trainer.global_step == 0:
-            unused = [name for name, p in self.named_parameters() 
-                    if p.requires_grad and p.grad is None]
-            if unused:
-                print("⚠️ Unused parameters:\n" + "\n".join(unused))
-
-    
+   
 
         
     def on_train_epoch_end(self):
