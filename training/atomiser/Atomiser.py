@@ -248,23 +248,23 @@ class Atomiser(pl.LightningModule):
 
 
         # cross & self layers
-        for idx_depth,(cross_attn, cross_ff, self_attns) in enumerate(self.layers):
-            
-            # optionally prune
-            t, m = tokens, tokens_mask
-            if self.masking > 0:
-                t, m, idx = pruning(t, m, self.masking)
-            # cross-attn
-            x = cross_attn(x, context=t, mask=m) + x
-            x = cross_ff(x) + x
-            # restore tokens if pruned
-            if self.masking > 0:
-                tokens[:, idx] = t
-                tokens_mask[:, idx] = m
-            # self-attn blocks
-            for (sa, ff) in self_attns:
-                x = sa(x) + x
-                x = ff(x) + x
+        #for idx_depth,(cross_attn, cross_ff, self_attns) in enumerate(self.layers):
+        #    
+        #    # optionally prune
+        #    t, m = tokens, tokens_mask
+        #    if self.masking > 0:
+        #        t, m, idx = pruning(t, m, self.masking)
+        #    # cross-attn
+        #    x = cross_attn(x, context=t, mask=m) + x
+        #    x = cross_ff(x) + x
+        #    # restore tokens if pruned
+        #    if self.masking > 0:
+        #        tokens[:, idx] = t
+        #        tokens_mask[:, idx] = m
+        #    # self-attn blocks
+        #    for (sa, ff) in self_attns:
+        #        x = sa(x) + x
+        #        x = ff(x) + x
         
 
     
