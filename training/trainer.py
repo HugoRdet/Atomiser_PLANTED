@@ -181,6 +181,12 @@ class Model(pl.LightningModule):
         
 
         return loss 
+    
+    def on_after_backward(self):
+        if self.trainer.global_step == 0:  # only check once
+            for name, param in self.named_parameters():
+                if param.requires_grad and param.grad is None:
+                    print(f"⚠️ Unused parameter: {name}")
 
     
 
