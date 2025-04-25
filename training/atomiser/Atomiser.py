@@ -18,15 +18,13 @@ import time
 def cache_fn(f):
     cache = dict()
     @wraps(f)
-    def cached_fn(*args, _cache=True, key=None, **kwargs):
+    def cached_fn(*args, _cache = True, key = None, **kwargs):
         if not _cache:
             return f(*args, **kwargs)
         nonlocal cache
-        if key is None:
-            raise ValueError("When caching, you must provide a `key`")
         if key in cache:
             return cache[key]
-        result = f(key=key, *args, **kwargs)
+        result = f(*args, **kwargs)
         cache[key] = result
         return result
     return cached_fn
@@ -89,7 +87,7 @@ class Atomiser(pl.LightningModule):
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
         nn.init.trunc_normal_(self.latents, std=0.02, a=-2., b=2.)
 
-        get_cross_attn = cache_fn(lambda key=None: PreNorm(
+        get_cross_attn = cache_fn(lambda: PreNorm(
             latent_dim,
             CrossAttention(
                 query_dim   = latent_dim,
@@ -100,14 +98,14 @@ class Atomiser(pl.LightningModule):
                 use_flash   = True
             ),
             context_dim = input_dim
-        ) if key is not None else None)  
+        ))
 
-        get_cross_ff = cache_fn(lambda key=None: PreNorm(
+        get_cross_ff = cache_fn(lambda: PreNorm(
             latent_dim,
             FeedForward(latent_dim, dropout=ff_dropout)
-        ) if key is not None else None)  
+        ))
 
-        get_latent_attn = cache_fn(lambda key=None: PreNorm(
+        get_latent_attn = cache_fn(lambda: PreNorm(
             latent_dim,
             SelfAttention(
                 dim        = latent_dim,
@@ -116,12 +114,12 @@ class Atomiser(pl.LightningModule):
                 dropout    = attn_dropout,
                 use_flash  = True
             )
-        ) if key is not None else None)  
+        ))
 
-        get_latent_ff = cache_fn(lambda key=None: PreNorm(
+        get_latent_ff = cache_fn(lambda: PreNorm(
             latent_dim,
             FeedForward(latent_dim, dropout=ff_dropout)
-        ) if key is not None else None)  
+        ))
 
         # Build cross/self-attn layers
         self.layers = nn.ModuleList()
