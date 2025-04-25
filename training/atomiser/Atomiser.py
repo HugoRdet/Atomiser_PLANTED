@@ -236,9 +236,9 @@ class Atomiser(pl.LightningModule):
 
 
 
-    def forward(self, data, mask=None, training=False):
+    def forward(self, data, training=False):
         # Preprocess tokens + mask
-        tokens, tokens_mask = self.process_data(data, mask)
+        tokens, tokens_mask = self.process_data(data)
         b = tokens.shape[0]
         # initialize latents
         x = repeat(self.latents, 'n d -> b n d', b=b)
