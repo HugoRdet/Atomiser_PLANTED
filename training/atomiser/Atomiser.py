@@ -139,14 +139,7 @@ class Atomiser(pl.LightningModule):
 
             self.layers.append(nn.ModuleList([cross_attn, cross_ff, self_attns]))
 
-        # Additional latent-only layers
-        self.latent_attn_layers = nn.ModuleList()
-        for i in range(latent_attn_depth):
-            cache_args = {'_cache':(i>0 and weight_tie_layers)}
-            self.latent_attn_layers.append(nn.ModuleList([
-                get_latent_attn(**cache_args),
-                get_latent_ff(**cache_args)
-            ]))
+  
 
         # Classifier
         if final_classifier_head:
@@ -268,10 +261,7 @@ class Atomiser(pl.LightningModule):
                 x = sa(x) + x
                 x = ff(x) + x
 
-        # latent-only layers
-        for (sa, ff) in self.latent_attn_layers:
-            x = sa(x) + x
-            x = ff(x) + x
+    
 
         # classifier
         return self.to_logits(x)
