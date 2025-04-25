@@ -62,7 +62,7 @@ class Atomiser(pl.LightningModule):
         masking: float = 0.,
     ):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['transform'])
         self.input_axis = input_axis
         self.masking = masking
         self.config = config
