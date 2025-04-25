@@ -244,7 +244,7 @@ class Atomiser(pl.LightningModule):
         
         tokens = tokens.masked_fill(~tokens_mask.unsqueeze(-1), 0.)
 
-        print(tokens.shape)
+        print("Active tokens:", torch.count_nonzero(tokens_mask), "/", tokens_mask.numel())
 
         # cross & self layers
         for idx_depth,(cross_attn, cross_ff, self_attns) in enumerate(self.layers):
