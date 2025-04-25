@@ -142,7 +142,7 @@ class Atomiser(pl.LightningModule):
         # Additional latent-only layers
         self.latent_attn_layers = nn.ModuleList()
         for i in range(latent_attn_depth):
-            cache_args = {'_cache':(i>0 and weight_tie_layers), 'key':i}
+            cache_args = {'_cache':(i>0 and weight_tie_layers)}
             self.latent_attn_layers.append(nn.ModuleList([
                 get_latent_attn(**cache_args),
                 get_latent_ff(**cache_args)
