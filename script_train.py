@@ -107,18 +107,15 @@ accumulator = GradientAccumulationScheduler(scheduling={0: 20})
 trainer = Trainer(
     use_distributed_sampler=False,
     strategy="ddp",
-    devices=[0],
+    devices=-1,
     max_epochs=config_model["trainer"]["epochs"],
     logger=wandb_logger,
     log_every_n_steps=256,
     accelerator="gpu",
     callbacks=[early_stop_callback, checkpoint_callback,accumulator],
     default_root_dir="./checkpoints/",
-    #val_check_interval=0.3,
+    val_check_interval=0.3,
     precision="bf16-mixed",
-    limit_train_batches=2,
-    limit_val_batches=2,
-
 )
 
 
