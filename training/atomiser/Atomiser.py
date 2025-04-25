@@ -123,7 +123,7 @@ class Atomiser(pl.LightningModule):
 
         # Build cross/self-attn layers
         self.layers = nn.ModuleList()
-        for i in range(1):
+        for i in range(0):
             cache_args = {'_cache': (i>0 and weight_tie_layers)}
             # cross
             cross_attn = get_cross_attn(**cache_args)
