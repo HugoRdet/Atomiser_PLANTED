@@ -187,6 +187,8 @@ class Model(pl.LightningModule):
         if batch_idx == 0 and self.trainer.global_rank == 0:
             missing = []
             for name, p in self.encoder.named_parameters():
+                print(f"{name}: grad is None? {p.grad is None}")
+
                 if p.requires_grad and p.grad is None:
                     missing.append(name)
             if missing:
