@@ -182,11 +182,7 @@ class Model(pl.LightningModule):
 
         return loss 
     
-    def on_after_backward(self):
-        # only run this check in the training stage
-        if not self.trainer.training:
-            return
-
+    def on_train_batch_end(self, outputs, batch, batch_idx):
         if self.trainer.global_step == 0:
             unused = [name for name, p in self.named_parameters() 
                     if p.requires_grad and p.grad is None]
