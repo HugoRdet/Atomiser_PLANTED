@@ -62,7 +62,7 @@ class Atomiser(pl.LightningModule):
         masking: float = 0.,
     ):
         super().__init__()
-        self.save_hyperparameters(ignore=['transform'])
+        #self.save_hyperparameters(ignore=['transform'])
         self.input_axis = input_axis
         self.masking = masking
         self.config = config
@@ -245,7 +245,7 @@ class Atomiser(pl.LightningModule):
 
         # cross & self layers
         for idx_depth,(cross_attn, cross_ff, self_attns) in enumerate(self.layers):
-            print(idx_depth)
+            
             # optionally prune
             t, m = tokens, tokens_mask
             if self.masking > 0:
