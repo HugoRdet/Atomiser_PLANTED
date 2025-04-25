@@ -261,11 +261,15 @@ class Atomiser(pl.LightningModule):
             for (sa, ff) in self_attns:
                 x = sa(x) + x
                 x = ff(x) + x
-                
-        for name, p in self.to_logits.named_parameters():
-            print(name, p.grad is None)
+
 
     
 
         # classifier
         return self.to_logits(x)
+    
+    def on_after_backward(self):
+        # only check once, right after the very first backward
+        if self.trainer.global_step == 0:
+            for name, p in self.to_logits.named_parameters():
+                print(f"{name}: grad is None? {p.grad is None}")
