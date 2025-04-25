@@ -261,6 +261,9 @@ class Atomiser(pl.LightningModule):
             for (sa, ff) in self_attns:
                 x = sa(x) + x
                 x = ff(x) + x
+                
+        for name, p in self.to_logits.named_parameters():
+            print(name, p.grad is None)
 
     
 
