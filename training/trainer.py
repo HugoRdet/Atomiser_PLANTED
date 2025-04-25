@@ -182,7 +182,19 @@ class Model(pl.LightningModule):
 
         return loss 
     
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        # only on the very first real training batch, and only on rank 0
+        if batch_idx == 0 and self.trainer.global_rank == 0:
+            missing = []
+            for name, p in self.encoder.named_parameters():
+                print(f"{name}: grad is None? {p.grad is None}")
 
+                if p.requires_grad and p.grad is None:
+                    missing.append(name)
+            if missing:
+                print("⚠️ Still no grad for:\n" + "\n".join(missing))
+            else:
+                print("✅ All parameters got gradients!")
 
         
     def on_train_epoch_end(self):
