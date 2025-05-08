@@ -194,7 +194,7 @@ class Model(pl.LightningModule):
     def forward(self, data,training=False):
 
         if self.config["encoder"] == "Atomiser":
-            pass
+            return self.encoder(data,training=training)
 
 
         data_s2,data_l7,data_modis=self.encoder.process_data(data)
