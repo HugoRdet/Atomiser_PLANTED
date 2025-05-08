@@ -237,8 +237,8 @@ class Model(pl.LightningModule):
 
             tmp_img_l7=einops.rearrange(imgs_l7,"B T H W C -> (T B) C H W")
 
-            #tmp_img_l7 = F.interpolate(tmp_img_l7, size=(12, 12), mode='bicubic', align_corners=False)
-            tmp_img_l7 = F.pad(tmp_img_l7, pad=(4, 4, 4, 4), mode='constant', value=0)
+            tmp_img_l7 = F.interpolate(tmp_img_l7, size=(12, 12), mode='bicubic', align_corners=False)
+            #tmp_img_l7 = F.pad(tmp_img_l7, pad=(4, 4, 4, 4), mode='constant', value=0)
             
             tmp_img_l7=self.encoder.forward(tmp_img_l7)
             tmp_img_l7=einops.rearrange(tmp_img_l7,"(T B) L -> T B L",T=t_size,B=b_size)
@@ -254,8 +254,8 @@ class Model(pl.LightningModule):
             t_size=imgs_mo.shape[1]
 
             tmp_img_mo=einops.rearrange(imgs_mo,"B T H W C -> (T B) C H W")
-            #tmp_img_mo = F.interpolate(tmp_img_mo, size=(12, 12), mode='bicubic', align_corners=False)
-            tmp_img_mo = F.pad(tmp_img_mo, pad=(5, 6, 5, 6), mode='constant', value=0)
+            tmp_img_mo = F.interpolate(tmp_img_mo, size=(12, 12), mode='bicubic', align_corners=False)
+            #tmp_img_mo = F.pad(tmp_img_mo, pad=(5, 6, 5, 6), mode='constant', value=0)
 
                 
             
