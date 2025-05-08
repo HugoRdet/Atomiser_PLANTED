@@ -101,7 +101,7 @@ early_stop_callback = EarlyStopping(
 )
 
 
-accumulator = GradientAccumulationScheduler(scheduling={0: 32})
+accumulator = GradientAccumulationScheduler(scheduling={0: 8}) #32 for Atos
 
 # Trainer
 trainer = Trainer(
