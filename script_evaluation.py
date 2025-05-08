@@ -86,7 +86,7 @@ if wand:
             project="PLANTED",
             config=config_model
         )
-        wandb_logger = WandbLogger(project="PLANTED")
+        wandb_logger = WandbLogger(project="Atomizer_PLANTED")
 
 
 checkpoint_dir = "./checkpoints"
