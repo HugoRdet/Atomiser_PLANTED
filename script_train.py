@@ -70,7 +70,7 @@ if wand:
             project="Atomizer_PLANTED",
             config=config_model
         )
-        wandb_logger = WandbLogger(project="Atomizer_PLANTED")
+        wandb_logger = WandbLogger(project="PLANTED")
 
 model = Model(config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
 
