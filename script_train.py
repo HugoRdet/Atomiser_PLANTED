@@ -67,7 +67,7 @@ if wand:
         import wandb
         wandb.init(
             name=config_model['encoder'],
-            project="Atomizer_PLANTED",
+            project="PLANTED",
             config=config_model
         )
         wandb_logger = WandbLogger(project="PLANTED")
