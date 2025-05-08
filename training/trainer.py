@@ -25,6 +25,18 @@ from torch.distributed import broadcast
 #BigEarthNet...
 warnings.filterwarnings("ignore", message="No positive samples found in target, recall is undefined. Setting recall to one for all thresholds.")
 
+
+def dynamic_weighted_average(logits: torch.Tensor) -> torch.Tensor:
+    """
+    logits: [T_total, B, C]
+    returns: [B, C]
+    """
+    probs = F.softmax(logits, dim=-1)
+    confidences = probs.max(dim=-1).values
+    weights = confidences / (confidences.sum(dim=0, keepdim=True) + 1e-8)
+    return (logits * weights.unsqueeze(-1)).sum(dim=0)
+
+
 class Model(pl.LightningModule):
     def __init__(self, config,labels, wand, name,transform=None):
         super().__init__()
@@ -70,6 +82,17 @@ class Model(pl.LightningModule):
             num_classes=self.num_classes
         )
 
+        if config["encoder"] == "ResNet50":
+            self.encoder = ResNet50(config["trainer"]["num_classes"], channels=6,transform=self.transform)
+        if config["encoder"] == "ResNet101":
+            self.encoder = ResNet101(config["trainer"]["num_classes"], channels=6,transform=self.transform)
+        if config["encoder"] == "ResNet152":
+            self.encoder = ResNet152(config["trainer"]["num_classes"], channels=6,transform=self.transform)
+        if config["encoder"] == "ResNetSmall":
+            self.encoder = ResNetSmall(config["trainer"]["num_classes"], channels=6,transform=self.transform)
+        if config["encoder"] == "ResNetSuperSmall":
+            self.encoder = ResNetSuperSmall(config["trainer"]["num_classes"], channels=6,transform=self.transform)
+
 
         if config["encoder"] == "Atomiser":
             self.encoder = Atomiser(
@@ -89,6 +112,21 @@ class Model(pl.LightningModule):
                 self_per_cross_attn=config["Atomiser"]["self_per_cross_attn"],
                 final_classifier_head=config["Atomiser"]["final_classifier_head"],
                 masking=config["Atomiser"]["masking"]
+            )
+
+        if config["encoder"] == "ViT":
+            ViT_conf = config["ViT"]["config"]
+            self.encoder = SimpleViT(
+                image_size=config["ViT"]["image_size"],
+                patch_size=config["ViT"]["patch_size"],
+                num_classes=self.num_classes,
+                dim=config["ViT"][ViT_conf]["dim"],
+                depth=config["ViT"][ViT_conf]["depth"],
+                heads=config["ViT"][ViT_conf]["heads"],
+                mlp_dim=config["ViT"][ViT_conf]["mlp_dim"],
+                channels=6,
+                dim_head=config["ViT"][ViT_conf]["dim_head"],
+                transform=self.transform
             )
 
 
@@ -148,12 +186,74 @@ class Model(pl.LightningModule):
 
         return res
         
-    def forward(self, tokens,training=False):
-        model_output=self.encoder(tokens,training=training)
+    def forward(self, data,training=False):
+
+        if self.config["encoder"] == "Atomiser":
+            pass
+
+
+        data_s2,data_l7,data_modis=self.encoder.process_data(data)
+
+        key_activ_mod= "training" if training else "test"
+
+        bool_s2= self.config["dataset"][key_activ_mod]["S2"] 
+        bool_l7= self.config["dataset"][key_activ_mod]["L7"] 
+        bool_mo= self.config["dataset"][key_activ_mod]["MODIS"]
+
+        res_array=[]
+
+        if bool_s2:
+            #B 8 12 12 6
+            imgs_s2,masks_s2=data_s2
+            imgs_s2[masks_s2==1]=0.0
+
+            for t in range(imgs_s2.shape[1]):
+                tmp_img_s2=imgs_s2[:,t,:,:,:]
+                tmp_img_s2=einops.rearrange(tmp_img_s2,"B H W C -> B C H W")
+                
+                res_s2=self.encoder.forward(tmp_img_s2).unsqueeze(0)
+                res_array.append(res_s2)
+        
+        if bool_l7:
+            #B 20 4 4 6 
+            imgs_l7,masks_l7=data_l7
+            imgs_l7[masks_l7==1]=0.0
+
+            for t in range(imgs_l7.shape[1]):
+                tmp_img_l7=imgs_l7[:,t,:,:,:]
+                tmp_img_l7=einops.rearrange(tmp_img_l7,"B H W C -> B C H W")
+                tmp_img_l7 = F.interpolate(tmp_img_l7, size=(12, 12), mode='bicubic', align_corners=False)
+                
+                res_l7=self.encoder.forward(tmp_img_l7).unsqueeze(0)
+                res_array.append(res_l7)
+        
+        if bool_mo:
+            imgs_mo,masks_mo=data_modis
+            imgs_mo[masks_mo==1]=0.0
+
+            for t in range(imgs_mo.shape[1]):
+                tmp_img_mo=imgs_mo[:,t,:,:,:]
+                tmp_img_mo=einops.rearrange(tmp_img_mo,"B H W C -> B C H W")
+                tmp_img_mo = F.interpolate(tmp_img_mo, size=(12, 12), mode='bicubic', align_corners=False)
+                
+                res_mo=self.encoder.forward(tmp_img_mo).unsqueeze(0)
+                res_array.append(res_mo)
+
+        res_array=torch.cat(res_array,dim=0)
+
+        if self.config["trainer"]["agregation"]=="confidence":
+            res_array=res_array.mean(dim=0)
+            
+        else:
+            
+            res_array=res_array=dynamic_weighted_average(res_array)
+        
+        return res_array
+
        
      
       
-        return model_output
+        
     
 
             

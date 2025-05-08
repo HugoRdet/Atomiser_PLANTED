@@ -75,8 +75,9 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return self.norm(x)
 class SimpleViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels=3, dim_head=64):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels=3, dim_head=64,transform=None):
         super().__init__()
+        self.transform=transform
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
 
@@ -106,6 +107,22 @@ class SimpleViT(nn.Module):
 
         self.linear_head = nn.Linear(dim, num_classes)
         self.sig=nn.Sigmoid()
+
+    def process_data(self,batch):
+        #L_tokens=[]
+        #L_masks=[]
+        
+        img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al = batch
+
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
+        data_s2=(tmp_img,tmp_mask)
+
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
+        data_l7=(tmp_img,tmp_mask)
+
+        data_modis=(img_mo,mask_mo)
+            
+        return data_s2,data_l7,data_modis
 
     def forward(self, img):
         device = img.device

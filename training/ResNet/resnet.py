@@ -62,8 +62,7 @@ class Block(nn.Module):
 
       if self.i_downsample is not None:
           identity = self.i_downsample(identity)
-      print(x.shape)
-      print(identity.shape)
+
       x += identity
       x = self.relu(x)
       return x
@@ -72,15 +71,16 @@ class Block(nn.Module):
         
         
 class ResNet(nn.Module):
-    def __init__(self, ResBlock, layer_list, num_classes, num_channels=3):
+    def __init__(self, ResBlock, layer_list, num_classes, num_channels=6,transform=None):
         super(ResNet, self).__init__()
         self.in_channels = 64
-        
-        self.conv1 = nn.Conv2d(num_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.transform=transform
+        self.conv1 = nn.Conv2d(num_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+
         self.batch_norm1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU()
-        self.max_pool = nn.MaxPool2d(kernel_size = 3, stride=2, padding=1)
-        
+        #self.max_pool = nn.MaxPool2d(kernel_size = 3, stride=2, padding=1)
+        self.max_pool = nn.Identity()
         self.layer1 = self._make_layer(ResBlock, layer_list[0], planes=64)
         self.layer2 = self._make_layer(ResBlock, layer_list[1], planes=128, stride=2)
         self.layer3 = self._make_layer(ResBlock, layer_list[2], planes=256, stride=2)
@@ -88,9 +88,31 @@ class ResNet(nn.Module):
         
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
         self.fc = nn.Linear(512*ResBlock.expansion, num_classes)
+
+
+
+    def process_data(self,batch):
+        #L_tokens=[]
+        #L_masks=[]
+        
+        img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al = batch
+
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
+        data_s2=(tmp_img,tmp_mask)
+
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
+        data_l7=(tmp_img,tmp_mask)
+
+        data_modis=(img_mo,mask_mo)
+            
+        return data_s2,data_l7,data_modis
         
     def forward(self, x):
-        x = self.relu(self.batch_norm1(self.conv1(x)))
+        
+        x = x.contiguous() 
+        x=self.conv1(x)
+        x=self.batch_norm1(x)
+        x = self.relu(x)
         x = self.max_pool(x)
 
         x = self.layer1(x)
@@ -122,17 +144,17 @@ class ResNet(nn.Module):
             
         return nn.Sequential(*layers)
 
-def ResNetSuperSmall(num_classes, channels=3):
-    return ResNet(Bottleneck, [1,1,1,1], num_classes, channels)
+def ResNetSuperSmall(num_classes, channels=6,transform=None):
+    return ResNet(Bottleneck, [1,1,1,1], num_classes, channels,transform)
     
-def ResNetSmall(num_classes, channels=3):
-    return ResNet(Bottleneck, [1,2,3,1], num_classes, channels)
+def ResNetSmall(num_classes, channels=6,transform=None):
+    return ResNet(Bottleneck, [1,2,3,1], num_classes, channels,transform)
     
-def ResNet50(num_classes, channels=3):
-    return ResNet(Bottleneck, [3,4,6,3], num_classes, channels)
+def ResNet50(num_classes, channels=6,transform=None):
+    return ResNet(Bottleneck, [3,4,6,3], num_classes, channels,transform)
     
-def ResNet101(num_classes, channels=3):
-    return ResNet(Bottleneck, [3,4,23,3], num_classes, channels)
+def ResNet101(num_classes, channels=6,transform=None):
+    return ResNet(Bottleneck, [3,4,23,3], num_classes, channels,transform)
 
-def ResNet152(num_classes, channels=3):
-    return ResNet(Bottleneck, [3,8,36,3], num_classes, channels)
+def ResNet152(num_classes, channels=6,transform=None):
+    return ResNet(Bottleneck, [3,8,36,3], num_classes, channels,transform)

@@ -177,59 +177,66 @@ class Atomiser(pl.LightningModule):
             return self.transform.apply_transformations_SAR(img,date,mask,modality,wave_encoding=wave_encoding)
                 
     def process_data(self,batch):
-        L_tokens=[]
-        L_masks=[]
+        #L_tokens=[]
+        #L_masks=[]
         
         img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al = batch
+
+        tokens_s2,tokens_mask_s2=None,None
+        tokens_l7,tokens_mask_l7=None,None
+        tokens_mo,tokens_mask_mo=None,None
         
-        if self.config["dataset"]["S2"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
-            tokens_s2,tokens_mask_s2=self.get_tokens(tmp_img,date_s2,tmp_mask,mode="optique",modality="s2")
-            L_masks.append(tokens_mask_s2)
-            L_tokens.append(tokens_s2)
+        
+        #if self.config["dataset"]["S2"]:
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
+        tokens_s2,tokens_mask_s2=self.get_tokens(tmp_img,date_s2,tmp_mask,mode="optique",modality="s2")
+            #L_masks.append(tokens_mask_s2)
+            #L_tokens.append(tokens_s2)
 
 
 
 
 
         
-        if self.config["dataset"]["L7"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
-            tokens_l7,tokens_mask_l7=self.get_tokens(tmp_img,date_l7,tmp_mask,mode="optique",modality="l7")
-            L_masks.append(tokens_mask_l7)
-            L_tokens.append(tokens_l7)
+        #if self.config["dataset"]["L7"]:
+        tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
+        tokens_l7,tokens_mask_l7=self.get_tokens(tmp_img,date_l7,tmp_mask,mode="optique",modality="l7")
+            #L_masks.append(tokens_mask_l7)
+            #L_tokens.append(tokens_l7)
 
 
 
-        if self.config["dataset"]["MODIS"]:
-            tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
-            L_masks.append(tokens_mask_mo)
-            L_tokens.append(tokens_mo)
+        #if self.config["dataset"]["MODIS"]:
+        tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
+            #L_masks.append(tokens_mask_mo)
+            #L_tokens.append(tokens_mo)
 
 
-        if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
-            L_masks.append(tokens_mask_s1)
-            L_tokens.append(tokens_s1)
+        #if self.config["dataset"]["S1"]:
+        #    tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
+        #    L_masks.append(tokens_mask_s1)
+        #    L_tokens.append(tokens_s1)
         
 
 
-        if self.config["dataset"]["ALOS"]:
-            tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
-            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH))
-            L_masks.append(tokens_mask_al)
-            L_tokens.append(tokens_al)
+        #if self.config["dataset"]["ALOS"]:
+        #    tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
+        #    tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH))
+        #    L_masks.append(tokens_mask_al)
+        #    L_tokens.append(tokens_al)
             
       
 
 
 
-        tokens=torch.cat(L_tokens,dim=1)
-        tokens_mask=torch.cat(L_masks,dim=1)
+        #tokens=torch.cat(L_tokens,dim=1)
+        #tokens_mask=torch.cat(L_masks,dim=1)
 
-
+        data_s2=(tokens_s2,tokens_mask_s2)
+        data_l7=(tokens_l7,tokens_mask_l7)
+        data_modis=(tokens_mo,tokens_mask_mo)
             
-        return tokens,tokens_mask
+        return data_s2,data_l7,data_modis
 
 
 

@@ -541,9 +541,19 @@ class CustomPlanted(Dataset):
         
         
         img_s2,date_s2,mask_s2=self.get_modality(f,"s2",idx)
+        #8:12:12:10
+        #T:H :W :C
+        img_s2=img_s2[:,:,:,[0,1,2,6,8,9]]
+        mask_s2=mask_s2[:,:,:,[0,1,2,6,8,9]]
+
         img_l7,date_l7,mask_l7=self.get_modality(f,"l7",idx)
+
         img_mo,date_mo,mask_mo=self.get_modality(f,"modis",idx)
+        img_mo=img_mo[:,:,:,[2,3,0,1,5,6]]
+        mask_mo=mask_mo[:,:,:,[2,3,0,1,5,6]]
+
         img_s1,date_s1,mask_s1=self.get_modality(f,"s1",idx)
+
         img_al,date_al,mask_al=self.get_modality(f,"alos",idx)
 
 
