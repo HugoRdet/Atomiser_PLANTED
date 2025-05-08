@@ -80,8 +80,13 @@ class Atomiser(pl.LightningModule):
         # Initialize spectral params
         self.VV = nn.Parameter(torch.empty(dw))
         self.VH = nn.Parameter(torch.empty(dw))
+        self.HV = nn.Parameter(torch.empty(dw))
+        self.HH = nn.Parameter(torch.empty(dw))
+
         nn.init.trunc_normal_(self.VV, std=0.02, a=-2., b=2.)
         nn.init.trunc_normal_(self.VH, std=0.02, a=-2., b=2.)
+        nn.init.trunc_normal_(self.HV, std=0.02, a=-2., b=2.)
+        nn.init.trunc_normal_(self.HH, std=0.02, a=-2., b=2.)
 
         # Latents
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
@@ -182,7 +187,7 @@ class Atomiser(pl.LightningModule):
         
         img_s2,img_l7,img_mo,img_s1,img_al,date_s2,date_l7,date_mo,date_s1,date_al,mask_s2,mask_l7,mask_mo,mask_s1,mask_al = batch
         
-        if self.config["dataset"]["S2"]:
+        if True:# self.config["dataset"]["S2"]:
             tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_s2, mask_s2)
             tokens_s2,tokens_mask_s2=self.get_tokens(tmp_img,date_s2,tmp_mask,mode="optique",modality="s2")
             L_masks.append(tokens_mask_s2)
@@ -193,7 +198,7 @@ class Atomiser(pl.LightningModule):
 
 
         
-        if self.config["dataset"]["L7"]:
+        if True:#self.config["dataset"]["L7"]:
             tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_l7, mask_l7)
             tokens_l7,tokens_mask_l7=self.get_tokens(tmp_img,date_l7,tmp_mask,mode="optique",modality="l7")
             L_masks.append(tokens_mask_l7)
@@ -201,22 +206,22 @@ class Atomiser(pl.LightningModule):
 
 
 
-        if self.config["dataset"]["MODIS"]:
+        if True:#if self.config["dataset"]["MODIS"]:
             tokens_mo,tokens_mask_mo=self.get_tokens(img_mo,date_mo,mask_mo,mode="optique",modality="modis")
             L_masks.append(tokens_mask_mo)
             L_tokens.append(tokens_mo)
 
 
-        if self.config["dataset"]["S1"]:
-            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH))
+        if True:# self.config["dataset"]["S1"]:
+            tokens_s1,tokens_mask_s1=self.get_tokens(img_s1,date_s1,mask_s1,mode="sar",modality="s1",wave_encoding=(self.VV,self.VH,self.HV,self.HH))
             L_masks.append(tokens_mask_s1)
             L_tokens.append(tokens_s1)
         
 
 
-        if self.config["dataset"]["ALOS"]:
+        if True:# self.config["dataset"]["ALOS"]:
             tmp_img,tmp_mask=self.transform.apply_temporal_spatial_transforms(img_al, mask_al)
-            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH))
+            tokens_al,tokens_mask_al=self.get_tokens(tmp_img,date_al,tmp_mask,mode="sar",modality="alos",wave_encoding=(self.VV,self.VH,self.HV,self.HH))
             L_masks.append(tokens_mask_al)
             L_tokens.append(tokens_al)
             

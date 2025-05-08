@@ -524,9 +524,14 @@ class transformations_config_flair(nn.Module):
         
         
         if wave_encoding!=None:
-            VV,VH=wave_encoding
-            central_wavelength_processing[:,:,:,:,0].copy_(VV)
-            central_wavelength_processing[:,:,:,:,1].copy_(VH)
+            if mode=="s1":
+                VV,VH,_,_=wave_encoding
+                central_wavelength_processing[:,:,:,:,0].copy_(VV)
+                central_wavelength_processing[:,:,:,:,1].copy_(VH)
+            else:
+                _,_,HV,HH=wave_encoding
+                central_wavelength_processing[:,:,:,:,0].copy_(HV)
+                central_wavelength_processing[:,:,:,:,1].copy_(HH)
                
         value_processed=self.get_bvalue_processing(im_sen)
         
