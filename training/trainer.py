@@ -22,7 +22,7 @@ import torchmetrics
 import warnings
 import wandb
 from torch.distributed import broadcast
-
+from transformers import get_cosine_schedule_with_warmup
 #BigEarthNet...
 warnings.filterwarnings("ignore", message="No positive samples found in target, recall is undefined. Setting recall to one for all thresholds.")
 
@@ -472,7 +472,25 @@ class Model(pl.LightningModule):
         
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.config["trainer"]["epochs"]*2, eta_min=0.0)#
-        #cosine_anneal_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30000, T_mult=1, eta_min=0.0)
-        return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': cosine_anneal_scheduler, 'interval': 'epoch', 'monitor': 'val_loss'}}
 
+        accumulate_grad_batches = 64#self.config["trainer"].get("accumulate_grad_batches", 1)
+        batches_per_epoch = self.trainer.estimated_stepping_batches/self.config["trainer"]["epochs"]
+        steps_per_epoch = batches_per_epoch // accumulate_grad_batches
+
+        total_steps = self.config["trainer"]["epochs"] * steps_per_epoch
+        warmup_steps = int(0.1 * total_steps)  # 10% warmup
+
+        scheduler = get_cosine_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps
+        )
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'interval': 'step',  # step-wise updating
+                'monitor': 'val_mod_val_loss'
+            }
+        }
