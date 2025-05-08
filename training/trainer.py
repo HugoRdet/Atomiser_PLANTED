@@ -4,6 +4,7 @@ from training.utils import *
 from training.losses import *
 from training.VIT import *
 from training.ResNet import *
+from training.scale_MAE import*
 from collections import defaultdict
 from training import *
 from pytorch_lightning import Trainer
@@ -130,6 +131,10 @@ class Model(pl.LightningModule):
             )
 
 
+        if config["encoder"] == "ScaleMAE":
+            self.encoder=CustomScaleMAE(transform=self.transform)
+
+
         self.common_classes,self.frequent_classes,self.rare_classes=self.get_label_frequencies()
 
       
@@ -204,6 +209,7 @@ class Model(pl.LightningModule):
 
         if bool_s2:
             #B 8 12 12 6
+            self.encoder.res=20
             imgs_s2,masks_s2=data_s2
             imgs_s2[masks_s2==1]=0.0
 
@@ -216,6 +222,7 @@ class Model(pl.LightningModule):
         
         if bool_l7:
             #B 20 4 4 6 
+            self.encoder.res=30
             imgs_l7,masks_l7=data_l7
             imgs_l7[masks_l7==1]=0.0
 
@@ -230,6 +237,7 @@ class Model(pl.LightningModule):
         if bool_mo:
             imgs_mo,masks_mo=data_modis
             imgs_mo[masks_mo==1]=0.0
+            self.encoder.res=500
 
             for t in range(imgs_mo.shape[1]):
                 tmp_img_mo=imgs_mo[:,t,:,:,:]

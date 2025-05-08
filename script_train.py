@@ -67,10 +67,10 @@ if wand:
         import wandb
         wandb.init(
             name=config_model['encoder'],
-            project="PLANTED",
+            project="Atomizer_PLANTED",
             config=config_model
         )
-        wandb_logger = WandbLogger(project="PLANTED")
+        wandb_logger = WandbLogger(project="Atomizer_PLANTED")
 
 model = Model(config_model, wand=wand, name=xp_name, labels=labels,transform=trans_config)
 
@@ -101,7 +101,7 @@ early_stop_callback = EarlyStopping(
 )
 
 
-accumulator = GradientAccumulationScheduler(scheduling={0: 20})
+accumulator = GradientAccumulationScheduler(scheduling={0: 128})
 
 # Trainer
 trainer = Trainer(
