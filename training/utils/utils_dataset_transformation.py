@@ -191,7 +191,7 @@ class transformations_config_flair(nn.Module):
 
         positional_scaling=None
         if not (resolution is None):
-            positional_scaling=(size * resolution)/120
+            positional_scaling=(size * resolution)/30
         
          
         max_freq=self.config["Atomiser"]["pos_max_freq"]
