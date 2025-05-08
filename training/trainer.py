@@ -236,9 +236,11 @@ class Model(pl.LightningModule):
 
             imgs_l7[masks_l7==1]=0.0
 
+            print(imgs_l7)
             tmp_img_l7=einops.rearrange(imgs_l7,"B T H W C -> (T B) C H W")
+            print(tmp_img_l7)
             tmp_img_mo = F.interpolate(tmp_img_l7, size=(12, 12), mode='bicubic', align_corners=False)
-                
+            print(tmp_img_l7)
             
             tmp_img_l7=self.encoder.forward(tmp_img_l7)
             tmp_img_l7=einops.rearrange(tmp_img_l7,"(T B) L -> T B L",T=t_size,B=b_size)
