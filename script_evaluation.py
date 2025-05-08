@@ -66,7 +66,7 @@ seed_everything(42, workers=True)
 torch.set_default_dtype(torch.float32)
 torch.set_float32_matmul_precision('medium')
 
-config_model = read_yaml("./training/configs/config_test-Atomiser_Atos.yaml")
+config_model = read_yaml("./training/configs/"+config_model)
 labels = load_json_to_dict("./data/labels.json")
 bands_yaml = "./data/bands_info/bands.yaml"
 
