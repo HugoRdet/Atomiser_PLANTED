@@ -224,7 +224,7 @@ class Model(pl.LightningModule):
 
             res_array.append(res_s2)
         
-        if bool_l7:
+        if False:
             #B 20 4 4 6 
             self.encoder.res=30
             imgs_l7,masks_l7=data_l7
