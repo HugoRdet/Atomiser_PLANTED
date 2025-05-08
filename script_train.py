@@ -101,7 +101,7 @@ early_stop_callback = EarlyStopping(
 )
 
 
-accumulator = GradientAccumulationScheduler(scheduling={0: 12})
+accumulator = GradientAccumulationScheduler(scheduling={0: 32})
 
 # Trainer
 trainer = Trainer(
@@ -114,9 +114,6 @@ trainer = Trainer(
     accelerator="gpu",
     callbacks=[early_stop_callback, checkpoint_callback,accumulator],
     default_root_dir="./checkpoints/",
-    limit_train_batches=25,
-    limit_val_batches=25,
-    limit_test_batches=25,
     precision="bf16-mixed",
 )
 
