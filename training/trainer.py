@@ -210,51 +210,63 @@ class Model(pl.LightningModule):
         if bool_s2:
             #B 8 12 12 6
             self.encoder.res=20
+            
             imgs_s2,masks_s2=data_s2
-            imgs_s2[masks_s2==1]=0.0
+            b_size=imgs_s2.shape[0]
+            t_size=imgs_s2.shape[1]
 
-            for t in range(imgs_s2.shape[1]):
-                tmp_img_s2=imgs_s2[:,t,:,:,:]
-                tmp_img_s2=einops.rearrange(tmp_img_s2,"B H W C -> B C H W")
-                
-                res_s2=self.encoder.forward(tmp_img_s2).unsqueeze(0)
-                res_array.append(res_s2)
+            imgs_s2[masks_s2==1]=0.0
+    
+            tmp_img_s2=einops.rearrange(imgs_s2,"B T H W C -> (T B) C H W")
+            
+            res_s2=self.encoder.forward(tmp_img_s2)
+            res_s2=einops.rearrange(res_s2,"(T B) L -> T B L",T=t_size,B=b_size)
+
+            res_array.append(res_s2)
         
         if bool_l7:
             #B 20 4 4 6 
             self.encoder.res=30
             imgs_l7,masks_l7=data_l7
+
+            b_size=imgs_l7.shape[0]
+            t_size=imgs_l7.shape[1]
+
             imgs_l7[masks_l7==1]=0.0
 
-            for t in range(imgs_l7.shape[1]):
-                tmp_img_l7=imgs_l7[:,t,:,:,:]
-                tmp_img_l7=einops.rearrange(tmp_img_l7,"B H W C -> B C H W")
-                tmp_img_l7 = F.interpolate(tmp_img_l7, size=(12, 12), mode='bicubic', align_corners=False)
-                
-                res_l7=self.encoder.forward(tmp_img_l7).unsqueeze(0)
-                res_array.append(res_l7)
+            tmp_img_l7=einops.rearrange(imgs_l7,"B T H W C -> (T B) C H W")
+            
+            tmp_img_l7=self.encoder.forward(tmp_img_l7)
+            tmp_img_l7=einops.rearrange(tmp_img_l7,"(T B) L -> T B L",T=t_size,B=b_size)
+
+            res_array.append(tmp_img_l7)
         
         if bool_mo:
             imgs_mo,masks_mo=data_modis
             imgs_mo[masks_mo==1]=0.0
             self.encoder.res=500
 
-            for t in range(imgs_mo.shape[1]):
-                tmp_img_mo=imgs_mo[:,t,:,:,:]
-                tmp_img_mo=einops.rearrange(tmp_img_mo,"B H W C -> B C H W")
-                tmp_img_mo = F.interpolate(tmp_img_mo, size=(12, 12), mode='bicubic', align_corners=False)
-                
-                res_mo=self.encoder.forward(tmp_img_mo).unsqueeze(0)
-                res_array.append(res_mo)
+            b_size=imgs_mo.shape[0]
+            t_size=imgs_mo.shape[1]
+
+
+            tmp_img_mo=einops.rearrange(imgs_mo,"B T H W C -> (T B) C H W")
+            
+            tmp_img_mo=self.encoder.forward(tmp_img_mo)
+            tmp_img_mo=einops.rearrange(tmp_img_mo,"(T B) L -> T B L",T=t_size,B=b_size)
+
+            res_array.append(tmp_img_mo)
 
         res_array=torch.cat(res_array,dim=0)
 
         if self.config["trainer"]["agregation"]=="confidence":
-            res_array=res_array.mean(dim=0)
+            
+            res_array=dynamic_weighted_average(res_array)
             
         else:
+            res_array=res_array.mean(dim=0)
             
-            res_array=res_array=dynamic_weighted_average(res_array)
+            
         
         return res_array
 
